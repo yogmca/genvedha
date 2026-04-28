@@ -36,11 +36,13 @@ fi
 # 2. Check port 80
 echo ""
 echo -e "${YELLOW}2. Checking port 80...${NC}"
-if netstat -tlnp | grep -q ":80 "; then
+if ss -tlnp 2>/dev/null | grep -q ":80 " || netstat -tlnp 2>/dev/null | grep -q ":80 "; then
     echo -e "${GREEN}✓ Port 80 is listening${NC}"
-    netstat -tlnp | grep ":80 "
+    ss -tlnp 2>/dev/null | grep ":80 " || netstat -tlnp 2>/dev/null | grep ":80 "
 else
     echo -e "${RED}✗ Port 80 is not listening${NC}"
+    echo "Checking Nginx error logs..."
+    tail -20 /var/log/nginx/error.log 2>/dev/null || echo "No error logs found"
     exit 1
 fi
 
@@ -82,9 +84,9 @@ fi
 echo ""
 echo -e "${YELLOW}4. Checking application port 3000...${NC}"
 sleep 2
-if netstat -tlnp | grep -q ":3000 "; then
+if ss -tlnp 2>/dev/null | grep -q ":3000 " || netstat -tlnp 2>/dev/null | grep -q ":3000 "; then
     echo -e "${GREEN}✓ Application is listening on port 3000${NC}"
-    netstat -tlnp | grep ":3000 "
+    ss -tlnp 2>/dev/null | grep ":3000 " || netstat -tlnp 2>/dev/null | grep ":3000 "
 else
     echo -e "${YELLOW}⚠ Application may not be running on port 3000${NC}"
 fi
@@ -138,7 +140,7 @@ else
     echo -e "Nginx: ${RED}✗ Not running${NC}"
 fi
 
-if netstat -tlnp | grep -q ":3000 "; then
+if ss -tlnp 2>/dev/null | grep -q ":3000 " || netstat -tlnp 2>/dev/null | grep -q ":3000 "; then
     echo -e "Application: ${GREEN}✓ Running${NC}"
 else
     echo -e "Application: ${YELLOW}⚠ Not detected${NC}"
