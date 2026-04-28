@@ -61,14 +61,37 @@ print_message "Domain: $DOMAIN_NAME"
 print_message "Email: $EMAIL"
 print_message "App Port: $APP_PORT"
 
+# Detect OS type
+if [ -f /etc/os-release ]; then
+    . /etc/os-release
+    OS=$ID
+else
+    print_error "Cannot detect OS type"
+    exit 1
+fi
+
+print_message "Detected OS: $OS"
+
 # Update system packages
 print_message "Updating system packages..."
-yum update -y
+if [ "$OS" = "ubuntu" ] || [ "$OS" = "debian" ]; then
+    apt-get update -y
+    export DEBIAN_FRONTEND=noninteractive
+elif [ "$OS" = "amzn" ] || [ "$OS" = "rhel" ] || [ "$OS" = "centos" ]; then
+    yum update -y
+else
+    print_warning "Unknown OS, attempting with apt-get..."
+    apt-get update -y || yum update -y
+fi
 
 # Install Nginx if not installed
 if ! command -v nginx &> /dev/null; then
     print_message "Installing Nginx..."
-    amazon-linux-extras install nginx1 -y || yum install nginx -y
+    if [ "$OS" = "ubuntu" ] || [ "$OS" = "debian" ]; then
+        apt-get install nginx -y
+    elif [ "$OS" = "amzn" ] || [ "$OS" = "rhel" ] || [ "$OS" = "centos" ]; then
+        amazon-linux-extras install nginx1 -y || yum install nginx -y
+    fi
 else
     print_message "Nginx is already installed"
 fi
@@ -76,14 +99,18 @@ fi
 # Install Certbot for Let's Encrypt
 if ! command -v certbot &> /dev/null; then
     print_message "Installing Certbot..."
-    yum install certbot python3-certbot-nginx -y || {
-        # Alternative installation method
-        yum install python3 augeas-libs -y
-        python3 -m venv /opt/certbot/
-        /opt/certbot/bin/pip install --upgrade pip
-        /opt/certbot/bin/pip install certbot certbot-nginx
-        ln -s /opt/certbot/bin/certbot /usr/bin/certbot
-    }
+    if [ "$OS" = "ubuntu" ] || [ "$OS" = "debian" ]; then
+        apt-get install certbot python3-certbot-nginx -y
+    elif [ "$OS" = "amzn" ] || [ "$OS" = "rhel" ] || [ "$OS" = "centos" ]; then
+        yum install certbot python3-certbot-nginx -y || {
+            # Alternative installation method
+            yum install python3 augeas-libs -y
+            python3 -m venv /opt/certbot/
+            /opt/certbot/bin/pip install --upgrade pip
+            /opt/certbot/bin/pip install certbot certbot-nginx
+            ln -s /opt/certbot/bin/certbot /usr/bin/certbot
+        }
+    fi
 else
     print_message "Certbot is already installed"
 fi
