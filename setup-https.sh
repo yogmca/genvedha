@@ -125,18 +125,31 @@ fi
 print_message "Removing any existing Nginx configurations..."
 rm -f /etc/nginx/sites-enabled/genvedha* /etc/nginx/sites-available/genvedha* /etc/nginx/conf.d/genvedha*
 
+# Remove default Nginx site that might conflict with port 80
+print_message "Removing default Nginx site to avoid conflicts..."
+rm -f /etc/nginx/sites-enabled/default /etc/nginx/conf.d/default.conf
+
+# Create directory for Let's Encrypt validation first
+print_message "Creating certbot directory with proper permissions..."
+mkdir -p /var/www/certbot/.well-known/acme-challenge
+chmod -R 755 /var/www/certbot
+chown -R www-data:www-data /var/www/certbot 2>/dev/null || chown -R nginx:nginx /var/www/certbot 2>/dev/null || true
+
 # Create initial HTTP-only Nginx configuration
 print_message "Creating initial HTTP-only Nginx configuration..."
 cat > /etc/nginx/conf.d/genvedha.conf << EOF
 # HTTP - Initial configuration for SSL certificate generation
 server {
-    listen 80;
-    listen [::]:80;
+    listen 80 default_server;
+    listen [::]:80 default_server;
     server_name $DOMAIN_NAME www.$DOMAIN_NAME;
 
-    # Let's Encrypt validation
-    location /.well-known/acme-challenge/ {
+    # Let's Encrypt validation - must be accessible
+    location ^~ /.well-known/acme-challenge/ {
+        allow all;
         root /var/www/certbot;
+        default_type "text/plain";
+        try_files \$uri =404;
     }
 
     # Logging
@@ -169,10 +182,6 @@ server {
     }
 }
 EOF
-
-# Create directory for Let's Encrypt validation
-print_message "Creating certbot directory..."
-mkdir -p /var/www/certbot
 
 # Test Nginx configuration
 print_message "Testing Nginx configuration..."
