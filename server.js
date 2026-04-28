@@ -2,6 +2,8 @@ const express = require('express');
 const { MongoClient } = require('mongodb');
 const cors = require('cors');
 const bodyParser = require('body-parser');
+const nodemailer = require('nodemailer');
+const path = require('path');
 require('dotenv').config();
 
 const app = express();
@@ -11,13 +13,79 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
-app.use(express.static('public'));
+
+// Serve static files from the React app build directory
+app.use(express.static(path.join(__dirname, 'dist')));
+// Also serve public assets (logo, etc.)
+app.use('/logo.png', express.static(path.join(__dirname, 'public/logo.png')));
 
 // MongoDB Connection String
-const MONGODB_URI = `mongodb+srv://${process.env.MONGODB_USERNAME}:${process.env.MONGODB_PASSWORD}@${process.env.MONGODB_CLUSTER}/${process.env.MONGODB_DATABASE}?retryWrites=true&w=majority`;
+const MONGODB_URI = process.env.MONGODB_URI || `mongodb+srv://${process.env.MONGODB_USERNAME}:${process.env.MONGODB_PASSWORD}@${process.env.MONGODB_CLUSTER}/${process.env.MONGODB_DATABASE}?retryWrites=true&w=majority`;
 
 let db;
 let contactsCollection;
+
+// Email transporter configuration
+let emailTransporter;
+
+function createEmailTransporter() {
+  try {
+    emailTransporter = nodemailer.createTransport({
+      host: process.env.EMAIL_HOST,
+      port: parseInt(process.env.EMAIL_PORT),
+      secure: process.env.EMAIL_SECURE === 'true',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASSWORD
+      }
+    });
+    console.log('✅ Email transporter configured successfully!');
+  } catch (error) {
+    console.error('⚠️  Email configuration error:', error.message);
+    console.log('⚠️  Email notifications will be disabled. Update EMAIL_* variables in .env to enable.');
+  }
+}
+
+// Send email notification
+async function sendEmailNotification(contactData) {
+  if (!emailTransporter) {
+    console.log('⚠️  Email transporter not configured. Skipping email notification.');
+    return false;
+  }
+
+  try {
+    const mailOptions = {
+      from: process.env.EMAIL_FROM,
+      to: process.env.EMAIL_TO,
+      subject: `New Contact Form Submission - ${contactData.service}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #0066ff;">New Contact Form Submission</h2>
+          <div style="background-color: #f8f9fa; padding: 20px; border-radius: 10px; margin: 20px 0;">
+            <p><strong>Name:</strong> ${contactData.name}</p>
+            <p><strong>Email:</strong> <a href="mailto:${contactData.email}">${contactData.email}</a></p>
+            <p><strong>Phone:</strong> ${contactData.phone || 'Not provided'}</p>
+            <p><strong>Company:</strong> ${contactData.company || 'Not provided'}</p>
+            <p><strong>Service Interest:</strong> ${contactData.service}</p>
+            <p><strong>Message:</strong></p>
+            <div style="background-color: white; padding: 15px; border-left: 4px solid #0066ff; margin-top: 10px;">
+              ${contactData.message}
+            </div>
+            <p style="margin-top: 20px; color: #666;"><strong>Submitted at:</strong> ${new Date(contactData.submittedAt).toLocaleString()}</p>
+          </div>
+          <p style="color: #666; font-size: 12px;">This is an automated notification from GenVedha website contact form.</p>
+        </div>
+      `
+    };
+
+    await emailTransporter.sendMail(mailOptions);
+    console.log('✅ Email notification sent successfully to', process.env.EMAIL_TO);
+    return true;
+  } catch (error) {
+    console.error('⚠️  Error sending email:', error.message);
+    return false;
+  }
+}
 
 // Connect to MongoDB
 async function connectToDatabase() {
@@ -29,13 +97,18 @@ async function connectToDatabase() {
     db = client.db(process.env.MONGODB_DATABASE);
     contactsCollection = db.collection('contacts');
     
-    // Create index on email for faster queries
-    await contactsCollection.createIndex({ email: 1 });
+    // Try to create index on email for faster queries (optional)
+    try {
+      await contactsCollection.createIndex({ email: 1 });
+      console.log('✅ Database index created successfully!');
+    } catch (indexError) {
+      console.log('⚠️  Could not create index (this is okay):', indexError.message);
+    }
     
   } catch (error) {
     console.error('⚠️  MongoDB connection error:', error.message);
     console.log('⚠️  Running in demo mode without database. Contact form submissions will not be saved.');
-    console.log('💡 To fix: Update MONGODB_CLUSTER in .env with your correct MongoDB Atlas cluster URL');
+    console.log('💡 To fix: Check your MongoDB connection string in .env');
   }
 }
 
@@ -74,6 +147,9 @@ app.post('/api/contact', async (req, res) => {
       status: 'new'
     };
     
+    // Send email notification
+    const emailSent = await sendEmailNotification(contactData);
+    
     // Check if MongoDB is connected
     if (contactsCollection) {
       const result = await contactsCollection.insertOne(contactData);
@@ -81,7 +157,8 @@ app.post('/api/contact', async (req, res) => {
       res.status(201).json({
         success: true,
         message: 'Thank you for contacting us! We will get back to you soon.',
-        contactId: result.insertedId
+        contactId: result.insertedId,
+        emailSent: emailSent
       });
     } else {
       // Demo mode - log to console instead
@@ -90,7 +167,8 @@ app.post('/api/contact', async (req, res) => {
       res.status(201).json({
         success: true,
         message: 'Thank you for contacting us! (Demo mode - submission logged to console)',
-        demo: true
+        demo: true,
+        emailSent: emailSent
       });
     }
     
@@ -132,16 +210,25 @@ app.get('/api/contacts', async (req, res) => {
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-  res.json({ 
-    success: true, 
+  res.json({
+    success: true,
     message: 'Server is running',
-    database: db ? 'connected' : 'disconnected'
+    database: db ? 'connected' : 'disconnected',
+    email: emailTransporter ? 'configured' : 'not configured'
   });
 });
 
+// Serve React app for all other routes (must be last)
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+});
+
 // Start server
+createEmailTransporter();
 connectToDatabase().then(() => {
   app.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
+    console.log(`🚀 Server is running on http://localhost:${PORT}`);
+    console.log(`📦 Serving React app from /dist`);
+    console.log(`🔌 API endpoints available at /api/*`);
   });
 });

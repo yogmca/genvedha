@@ -1,147 +1,272 @@
 # GenVedha Global AI & Software Solutions Website
 
-A modern, professional website for GenVedha Global AI & Software Solutions with MongoDB integration for contact form submissions.
+A modern, React-based website for GenVedha Global AI & Software Solutions, featuring a responsive design, contact form with email notifications, and MongoDB integration.
 
-## Features
+## 🚀 Features
 
-- **Modern Responsive Design**: Beautiful, mobile-friendly interface
-- **Contact Form**: Integrated with MongoDB to store contact submissions
-- **Service Showcase**: Display AI, software development, and cloud services
-- **Industry Solutions**: Highlight solutions for various industries
-- **Smooth Animations**: Professional animations and transitions
-- **SEO Optimized**: Proper meta tags and semantic HTML
+- **React Frontend**: Modern JSX components with React Router for navigation
+- **Responsive Design**: Mobile-first design that works on all devices
+- **Contact Form**: Integrated contact form with backend API
+- **Email Notifications**: Automatic email notifications for form submissions
+- **MongoDB Integration**: Store contact form submissions in MongoDB
+- **Service Pages**: Detailed service pages including Application Development
+- **Portfolio Showcase**: Display of completed projects
 
-## Technology Stack
+## 📁 Project Structure
 
-- **Frontend**: HTML5, CSS3, JavaScript (Vanilla)
-- **Backend**: Node.js, Express.js
-- **Database**: MongoDB Atlas
-- **Styling**: Custom CSS with modern design patterns
+```
+genvedha-website/
+├── src/                          # React source files
+│   ├── components/               # Reusable React components
+│   │   ├── Navbar.jsx           # Navigation component
+│   │   ├── Footer.jsx           # Footer component
+│   │   ├── Hero.jsx             # Hero section
+│   │   ├── Services.jsx         # Services grid
+│   │   ├── Portfolio.jsx        # Portfolio showcase
+│   │   ├── Solutions.jsx        # Industry solutions
+│   │   ├── About.jsx            # About section
+│   │   └── Contact.jsx          # Contact form
+│   ├── pages/                   # Page components
+│   │   ├── Home.jsx             # Home page
+│   │   └── ApplicationDevelopment.jsx  # Service detail page
+│   ├── styles/                  # CSS files
+│   │   ├── main.css             # Main styles
+│   │   └── service-page.css     # Service page styles
+│   ├── App.jsx                  # Main app component with routing
+│   └── index.js                 # Entry point
+├── public/                      # Static assets
+│   ├── logo.png                 # Company logo
+│   └── index-template.html      # HTML template
+├── dist/                        # Production build (generated)
+├── server.js                    # Express backend server
+├── webpack.config.js            # Webpack configuration
+├── .babelrc                     # Babel configuration
+├── .env                         # Environment variables
+└── package.json                 # Dependencies and scripts
 
-## Installation
-
-1. Navigate to the project directory:
-```bash
-cd genvedha-website
 ```
 
-2. Install dependencies:
-```bash
-npm install
-```
+## 🛠️ Technology Stack
 
-3. Configure environment variables:
-The `.env` file is already configured with your MongoDB credentials:
-- Username: ykmysuru27_db_user
-- Password: QWLP9LcE3nIRcEaY
+### Frontend
+- **React 19.2.5**: UI library
+- **React Router DOM 7.14.2**: Client-side routing
+- **Webpack 5**: Module bundler
+- **Babel**: JavaScript transpiler
 
-4. Start the server:
-```bash
-npm start
-```
+### Backend
+- **Node.js**: Runtime environment
+- **Express 4.18.2**: Web framework
+- **MongoDB 6.3.0**: Database
+- **Nodemailer 8.0.7**: Email service
+- **CORS**: Cross-origin resource sharing
+- **dotenv**: Environment variable management
 
-For development with auto-reload:
+## 📦 Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd genvedha-website
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Configure environment variables**
+   
+   Copy `.env.example` to `.env` and update with your credentials:
+   ```bash
+   cp .env.example .env
+   ```
+
+   Edit `.env` with your MongoDB and email settings:
+   ```env
+   # MongoDB Configuration
+   MONGODB_USERNAME=your_username
+   MONGODB_PASSWORD=your_password
+   MONGODB_CLUSTER=your_cluster.mongodb.net
+   MONGODB_DATABASE=genvedha
+
+   # Email Configuration
+   EMAIL_HOST=smtp.gmail.com
+   EMAIL_PORT=587
+   EMAIL_SECURE=false
+   EMAIL_USER=your-email@gmail.com
+   EMAIL_PASSWORD=your-app-password
+   EMAIL_FROM=your-email@gmail.com
+   EMAIL_TO=support@genvedha.com
+
+   # Server Configuration
+   PORT=3000
+   ```
+
+## 🚀 Running the Application
+
+### Development Mode
+
+**Option 1: Run backend and frontend separately**
+
+Terminal 1 - Backend server:
 ```bash
 npm run dev
 ```
 
-5. Open your browser and visit:
-```
-http://localhost:3000
-```
-
-## Project Structure
-
-```
-genvedha-website/
-├── public/
-│   ├── index.html      # Main HTML file
-│   ├── styles.css      # Styling
-│   └── script.js       # Frontend JavaScript
-├── server.js           # Express server with MongoDB integration
-├── package.json        # Dependencies
-├── .env               # Environment variables (MongoDB credentials)
-└── README.md          # This file
+Terminal 2 - Frontend dev server:
+```bash
+npm run dev:client
 ```
 
-## API Endpoints
+**Option 2: Run both concurrently**
+```bash
+npm run dev:all
+```
 
-### POST /api/contact
-Submit a new contact form
-- **Body**: JSON with name, email, phone, company, service, message
-- **Response**: Success/error message with contact ID
+The backend will run on `http://localhost:3000` and the frontend dev server on `http://localhost:3001`.
 
-### GET /api/contacts
-Retrieve all contacts (admin endpoint)
-- **Response**: Array of all contact submissions
+### Production Mode
 
-### GET /api/health
-Health check endpoint
-- **Response**: Server and database status
+1. **Build the React app**
+   ```bash
+   npm run build
+   ```
 
-## MongoDB Schema
+2. **Start the production server**
+   ```bash
+   npm start
+   ```
 
-Contacts are stored with the following structure:
-```javascript
+The application will be available at `http://localhost:3000`.
+
+## 📝 Available Scripts
+
+- `npm start` - Start production server (serves built React app)
+- `npm run dev` - Start backend server with nodemon (auto-restart)
+- `npm run build` - Build React app for production
+- `npm run dev:client` - Start webpack dev server for frontend development
+- `npm run dev:all` - Run both backend and frontend dev servers concurrently
+
+## 🔌 API Endpoints
+
+### POST `/api/contact`
+Submit a contact form
+
+**Request Body:**
+```json
 {
-  name: String,
-  email: String,
-  phone: String,
-  company: String,
-  message: String,
-  service: String,
-  submittedAt: Date,
-  status: String
+  "name": "John Doe",
+  "email": "john@example.com",
+  "phone": "+1234567890",
+  "company": "Example Corp",
+  "service": "AI & Machine Learning",
+  "message": "I'm interested in your services"
 }
 ```
 
-## Features Included
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Thank you for contacting us! We will get back to you soon.",
+  "contactId": "507f1f77bcf86cd799439011",
+  "emailSent": true
+}
+```
 
-1. **Hero Section**: Eye-catching landing with call-to-action buttons
-2. **Services Section**: 6 service cards with icons and descriptions
-3. **Solutions Section**: Industry-specific solutions showcase
-4. **About Section**: Company information with statistics
-5. **Contact Form**: Fully functional form with MongoDB integration
-6. **Responsive Design**: Works on all devices (mobile, tablet, desktop)
-7. **Smooth Scrolling**: Navigation with smooth scroll behavior
-8. **Form Validation**: Client-side and server-side validation
-9. **Loading States**: Visual feedback during form submission
-10. **Error Handling**: Comprehensive error handling and user feedback
+### GET `/api/contacts`
+Get all contact submissions (admin endpoint)
 
-## Customization
+**Response:**
+```json
+{
+  "success": true,
+  "contacts": [...]
+}
+```
 
-### Update Company Information
-Edit the content in `public/index.html` to update:
-- Company name and tagline
-- Services and descriptions
-- Contact information
-- Statistics
+### GET `/api/health`
+Health check endpoint
 
-### Modify Styling
-Edit `public/styles.css` to customize:
-- Colors (CSS variables in `:root`)
-- Fonts
-- Layout and spacing
-- Animations
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Server is running",
+  "database": "connected",
+  "email": "configured"
+}
+```
 
-### Add More Features
-Extend `server.js` to add:
-- Email notifications
-- Admin dashboard
-- Authentication
-- Additional API endpoints
+## 🎨 Component Architecture
 
-## Security Notes
+### Frontend Components
 
-- The `.env` file contains sensitive credentials. In production, ensure it's not committed to version control
-- Consider adding rate limiting for the contact form
-- Implement CAPTCHA for spam prevention
-- Add authentication for the admin endpoints
+- **Navbar**: Responsive navigation with mobile menu
+- **Hero**: Landing section with call-to-action buttons
+- **Services**: Grid of service offerings with links
+- **Portfolio**: Showcase of completed projects
+- **Solutions**: Industry-specific solutions
+- **About**: Company information
+- **Contact**: Contact form with validation and API integration
+- **Footer**: Site footer with links and contact info
 
-## Support
+### Pages
 
-For issues or questions, contact: info@genvedha.com
+- **Home**: Main landing page with all sections
+- **ApplicationDevelopment**: Detailed service page with process, tech stack, and benefits
 
-## License
+## 🔒 Security Features
 
-© 2026 GenVedha Global AI & Software Solutions. All rights reserved.
+- Environment variable protection
+- CORS configuration
+- Input validation on contact form
+- Email validation
+- MongoDB connection error handling
+- Secure email transmission
+
+## 📱 Responsive Design
+
+The website is fully responsive and optimized for:
+- Desktop (1200px+)
+- Tablet (768px - 1199px)
+- Mobile (320px - 767px)
+
+## 🌐 Browser Support
+
+- Chrome (latest)
+- Firefox (latest)
+- Safari (latest)
+- Edge (latest)
+
+## 🐛 Troubleshooting
+
+### MongoDB Connection Issues
+- Verify your MongoDB credentials in `.env`
+- Check if your IP is whitelisted in MongoDB Atlas
+- Ensure the cluster URL is correct
+
+### Email Not Sending
+- For Gmail, use an App Password instead of your regular password
+- Enable "Less secure app access" or use OAuth2
+- Verify SMTP settings are correct
+
+### Build Warnings
+- Large bundle size warnings are normal for production builds
+- Consider code splitting for optimization if needed
+
+## 📄 License
+
+ISC
+
+## 👥 Contact
+
+For support or inquiries:
+- Email: support@genvedha.com
+- Phone: +1 (555) 123-4567
+
+---
+
+**GenVedha Global AI & Software Solutions**  
+*Intelligence. Innovation. Impact.*
