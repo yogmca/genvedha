@@ -115,6 +115,16 @@ else
     print_message "Certbot is already installed"
 fi
 
+# Stop Nginx if it's running to avoid conflicts
+if systemctl is-active --quiet nginx; then
+    print_message "Stopping Nginx to clean up old configurations..."
+    systemctl stop nginx
+fi
+
+# Remove any existing Nginx configuration for this domain
+print_message "Removing any existing Nginx configurations..."
+rm -f /etc/nginx/sites-enabled/genvedha* /etc/nginx/sites-available/genvedha* /etc/nginx/conf.d/genvedha*
+
 # Create initial HTTP-only Nginx configuration
 print_message "Creating initial HTTP-only Nginx configuration..."
 cat > /etc/nginx/conf.d/genvedha.conf << EOF
