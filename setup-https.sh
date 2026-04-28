@@ -115,10 +115,10 @@ else
     print_message "Certbot is already installed"
 fi
 
-# Create Nginx configuration
-print_message "Creating Nginx configuration..."
+# Create initial HTTP-only Nginx configuration
+print_message "Creating initial HTTP-only Nginx configuration..."
 cat > /etc/nginx/conf.d/genvedha.conf << EOF
-# HTTP - Redirect to HTTPS
+# HTTP - Initial configuration for SSL certificate generation
 server {
     listen 80;
     listen [::]:80;
@@ -129,40 +129,11 @@ server {
         root /var/www/certbot;
     }
 
-    # Redirect all HTTP to HTTPS
-    location / {
-        return 301 https://\$server_name\$request_uri;
-    }
-}
-
-# HTTPS - Main configuration
-server {
-    listen 443 ssl http2;
-    listen [::]:443 ssl http2;
-    server_name $DOMAIN_NAME www.$DOMAIN_NAME;
-
-    # SSL certificates (will be configured by certbot)
-    ssl_certificate /etc/letsencrypt/live/$DOMAIN_NAME/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/$DOMAIN_NAME/privkey.pem;
-
-    # SSL configuration
-    ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_ciphers HIGH:!aNULL:!MD5;
-    ssl_prefer_server_ciphers on;
-    ssl_session_cache shared:SSL:10m;
-    ssl_session_timeout 10m;
-
-    # Security headers
-    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
-    add_header X-Frame-Options "SAMEORIGIN" always;
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header X-XSS-Protection "1; mode=block" always;
-
     # Logging
     access_log /var/log/nginx/genvedha_access.log;
     error_log /var/log/nginx/genvedha_error.log;
 
-    # Proxy settings
+    # Proxy settings for the application
     location / {
         proxy_pass http://localhost:$APP_PORT;
         proxy_http_version 1.1;
@@ -215,7 +186,17 @@ print_message "Obtaining SSL certificate from Let's Encrypt..."
 print_warning "Make sure your domain $DOMAIN_NAME points to this server's IP address!"
 read -p "Press Enter to continue or Ctrl+C to cancel..."
 
+# Certbot will automatically update the Nginx configuration to use HTTPS
+print_message "Running Certbot to obtain certificate and configure HTTPS..."
 certbot --nginx -d $DOMAIN_NAME -d www.$DOMAIN_NAME --non-interactive --agree-tos --email $EMAIL --redirect
+
+# Update the Nginx configuration to use modern http2 directive syntax
+print_message "Updating Nginx configuration for modern http2 syntax..."
+if [ -f /etc/nginx/conf.d/genvedha.conf ]; then
+    # Replace deprecated "listen 443 ssl http2" with "listen 443 ssl" and add "http2 on"
+    sed -i 's/listen 443 ssl http2;/listen 443 ssl;\n    http2 on;/g' /etc/nginx/conf.d/genvedha.conf
+    sed -i 's/listen \[::\]:443 ssl http2;/listen [::]:443 ssl;\n    http2 on;/g' /etc/nginx/conf.d/genvedha.conf
+fi
 
 # Setup automatic certificate renewal
 print_message "Setting up automatic certificate renewal..."
