@@ -1,0 +1,81 @@
+================================================================================
+🚀 QUICK RESTART COMMANDS FOR GENVEDHA.COM
+================================================================================
+
+STEP 1: SSH into your EC2 server
+---------------------------------
+ssh -i ~/path/to/your-key.pem ec2-user@3.11.178.44
+
+(Replace ~/path/to/your-key.pem with your actual key file location)
+
+
+STEP 2: Pull latest code and restart
+-------------------------------------
+cd ~/genvedha-website
+git pull origin main
+chmod +x restart-commands.sh emergency-fix.sh
+./restart-commands.sh
+
+
+ALTERNATIVE: Manual restart (if script doesn't work)
+----------------------------------------------------
+cd ~/genvedha-website
+pm2 restart genvedha-website
+pm2 status
+curl http://localhost:3000
+
+
+STEP 3: Verify it's working
+----------------------------
+# On EC2 server:
+pm2 status
+curl http://localhost:3000
+
+# On your local computer (new terminal):
+curl http://3.11.178.44:3000
+
+# In browser:
+http://3.11.178.44:3000
+
+
+IF RESTART DOESN'T WORK - Run Emergency Fix
+--------------------------------------------
+cd ~/genvedha-website
+./emergency-fix.sh
+
+
+COMMON ISSUES
+-------------
+1. If PM2 shows "errored":
+   pm2 delete genvedha-website
+   pm2 start server.js --name genvedha-website
+   pm2 save
+
+2. If port 3000 is in use:
+   sudo lsof -i :3000
+   sudo kill -9 <PID>
+   pm2 restart genvedha-website
+
+3. Check logs for errors:
+   pm2 logs genvedha-website --lines 50
+
+
+AFTER SERVER IS RUNNING - Fix Domain/SSL Issues
+------------------------------------------------
+See: SITE-DOWN-DIAGNOSIS.md for DNS and SSL fixes
+
+Main issues:
+1. GoDaddy has multiple A records (remove parking IPs)
+2. SSL certificate needs regeneration
+3. Nginx configuration needs update
+
+
+QUICK STATUS CHECK
+------------------
+pm2 status && echo "" && sudo netstat -tlnp | grep 3000 && echo "" && curl -I http://localhost:3000
+
+
+================================================================================
+Your EC2 IP: 3.11.178.44
+Documentation: See RESTART-SERVER-NOW.md for detailed guide
+================================================================================
