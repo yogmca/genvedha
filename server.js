@@ -19,6 +19,17 @@ app.use(express.static(path.join(__dirname, 'dist')));
 // Also serve public assets (logo, etc.)
 app.use('/logo.png', express.static(path.join(__dirname, 'public/logo.png')));
 
+// SEO Files - Serve sitemap.xml and robots.txt from public directory
+app.get('/sitemap.xml', (req, res) => {
+  res.setHeader('Content-Type', 'application/xml');
+  res.sendFile(path.join(__dirname, 'public/sitemap.xml'));
+});
+
+app.get('/robots.txt', (req, res) => {
+  res.setHeader('Content-Type', 'text/plain');
+  res.sendFile(path.join(__dirname, 'public/robots.txt'));
+});
+
 // MongoDB Connection String
 const MONGODB_URI = process.env.MONGODB_URI || `mongodb+srv://${process.env.MONGODB_USERNAME}:${process.env.MONGODB_PASSWORD}@${process.env.MONGODB_CLUSTER}/${process.env.MONGODB_DATABASE}?retryWrites=true&w=majority`;
 
