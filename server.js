@@ -16,8 +16,8 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 // Serve static files from the React app build directory
 app.use(express.static(path.join(__dirname, 'dist')));
-// Also serve public assets (logo, etc.)
-app.use('/logo.png', express.static(path.join(__dirname, 'public/logo.png')));
+// Serve public directory for static assets (logo, verification files, etc.)
+app.use(express.static(path.join(__dirname, 'public')));
 
 // SEO Files - Serve sitemap.xml and robots.txt from public directory
 app.get('/sitemap.xml', (req, res) => {
@@ -28,6 +28,12 @@ app.get('/sitemap.xml', (req, res) => {
 app.get('/robots.txt', (req, res) => {
   res.setHeader('Content-Type', 'text/plain');
   res.sendFile(path.join(__dirname, 'public/robots.txt'));
+});
+
+// Google Search Console verification file
+app.get('/googled2aa9717f21f7609.html', (req, res) => {
+  res.setHeader('Content-Type', 'text/html');
+  res.sendFile(path.join(__dirname, 'public/googled2aa9717f21f7609.html'));
 });
 
 // MongoDB Connection String
