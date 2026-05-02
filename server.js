@@ -107,12 +107,23 @@ async function sendEmailNotification(contactData) {
 // Connect to MongoDB
 async function connectToDatabase() {
   try {
-    const client = new MongoClient(MONGODB_URI);
+    const client = new MongoClient(MONGODB_URI, {
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+    });
     await client.connect();
     console.log('✅ Connected to MongoDB successfully!');
     
     db = client.db(process.env.MONGODB_DATABASE);
     contactsCollection = db.collection('contacts');
+    
+    // Test the connection with a simple operation
+    try {
+      await db.admin().ping();
+      console.log('✅ MongoDB ping successful!');
+    } catch (pingError) {
+      console.log('⚠️  MongoDB ping failed:', pingError.message);
+    }
     
     // Try to create index on email for faster queries (optional)
     try {
@@ -126,6 +137,9 @@ async function connectToDatabase() {
     console.error('⚠️  MongoDB connection error:', error.message);
     console.log('⚠️  Running in demo mode without database. Contact form submissions will not be saved.');
     console.log('💡 To fix: Check your MongoDB connection string in .env');
+    // Set collections to null to trigger demo mode
+    db = null;
+    contactsCollection = null;
   }
 }
 
@@ -169,24 +183,55 @@ app.post('/api/contact', async (req, res) => {
     
     // Check if MongoDB is connected
     if (contactsCollection) {
-      const result = await contactsCollection.insertOne(contactData);
-      
-      res.status(201).json({
-        success: true,
-        message: 'Thank you for contacting us! We will get back to you soon.',
-        contactId: result.insertedId,
-        emailSent: emailSent
-      });
+      try {
+        const result = await contactsCollection.insertOne(contactData);
+        
+        res.status(201).json({
+          success: true,
+          message: 'Thank you for contacting us! We will get back to you soon.',
+          contactId: result.insertedId,
+          emailSent: emailSent
+        });
+      } catch (dbError) {
+        console.error('⚠️  MongoDB insert error:', dbError.message);
+        console.error('⚠️  Error code:', dbError.code);
+        console.error('⚠️  Error name:', dbError.codeName);
+        
+        // If database fails but email was sent, still return success
+        if (emailSent) {
+          console.log('✅ Email was sent successfully, continuing without database save');
+          res.status(201).json({
+            success: true,
+            message: 'Thank you for contacting us! We will get back to you soon.',
+            emailSent: true,
+            dbSaved: false,
+            note: 'Your message was received via email'
+          });
+        } else {
+          // Both failed
+          throw dbError;
+        }
+      }
     } else {
       // Demo mode - log to console instead
       console.log('📧 Contact Form Submission (Demo Mode):', contactData);
       
-      res.status(201).json({
-        success: true,
-        message: 'Thank you for contacting us! (Demo mode - submission logged to console)',
-        demo: true,
-        emailSent: emailSent
-      });
+      // If email was sent, that's good enough
+      if (emailSent) {
+        res.status(201).json({
+          success: true,
+          message: 'Thank you for contacting us! We will get back to you soon.',
+          emailSent: true,
+          dbSaved: false
+        });
+      } else {
+        res.status(201).json({
+          success: true,
+          message: 'Thank you for contacting us! (Demo mode - submission logged to console)',
+          demo: true,
+          emailSent: false
+        });
+      }
     }
     
   } catch (error) {
