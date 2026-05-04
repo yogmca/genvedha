@@ -81,7 +81,7 @@ const Contact = () => {
               <span className="info-icon">📞</span>
               <div>
                 <h4>Phone</h4>
-                <p>+1 (555) 123-4567</p>
+                <p>+918867487656</p>
               </div>
             </div>
             <div className="info-item">
