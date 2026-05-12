@@ -1,0 +1,303 @@
+/**
+ * Environment Configuration Generator
+ * Generates .env files with user credentials
+ */
+
+const fs = require('fs-extra');
+const path = require('path');
+
+class EnvGenerator {
+  /**
+   * Generate .env file for the generated app
+   * @param {Object} params - Generation parameters
+   * @param {string} params.appPath - Path to the generated app
+   * @param {Object} params.customizations - Customization data from Claude
+   * @param {Object} params.credentials - User credentials
+   * @returns {Promise<Object>} Environment configuration
+   */
+  async generateEnvFile(params) {
+    const { appPath, customizations, credentials } = params;
+
+    try {
+      console.log('⚙️  Generating environment configuration...');
+
+      // Build environment configuration
+      const envConfig = this._buildEnvConfig(customizations, credentials);
+
+      // Write .env file
+      const envPath = path.join(appPath, '.env');
+      const envContent = this._formatEnvFile(envConfig);
+      
+      await fs.writeFile(envPath, envContent);
+      console.log('✅ .env file generated successfully');
+
+      // Also create .env.example for reference
+      const exampleEnvPath = path.join(appPath, '.env.example');
+      const exampleContent = this._formatEnvFile(envConfig, true);
+      await fs.writeFile(exampleEnvPath, exampleContent);
+
+      return envConfig;
+    } catch (error) {
+      console.error('❌ Failed to generate .env file:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Build environment configuration object
+   */
+  _buildEnvConfig(customizations, credentials) {
+    const config = {
+      // Application Configuration
+      NODE_ENV: 'production',
+      PORT: '3000',
+      APP_NAME: customizations.appName || 'E-commerce App',
+      APP_URL: credentials.appUrl || 'http://localhost:3000',
+
+      // MongoDB Configuration
+      MONGODB_URI: credentials.mongodbUri || '',
+      MONGODB_USERNAME: credentials.mongodbUsername || '',
+      MONGODB_PASSWORD: credentials.mongodbPassword || '',
+      MONGODB_CLUSTER: credentials.mongodbCluster || '',
+      MONGODB_DATABASE: credentials.mongodbDatabase || this._sanitizeDatabaseName(customizations.appName),
+
+      // Razorpay Configuration
+      RAZORPAY_KEY_ID: credentials.razorpayKeyId || '',
+      RAZORPAY_KEY_SECRET: credentials.razorpayKeySecret || '',
+      RAZORPAY_WEBHOOK_SECRET: credentials.razorpayWebhookSecret || '',
+
+      // Gmail SMTP Configuration
+      EMAIL_HOST: 'smtp.gmail.com',
+      EMAIL_PORT: '587',
+      EMAIL_SECURE: 'false',
+      EMAIL_USER: credentials.gmailUser || '',
+      EMAIL_PASSWORD: credentials.gmailPassword || '',
+      EMAIL_FROM: credentials.emailFrom || customizations.emailConfig?.senderName || customizations.appName,
+      EMAIL_TO: credentials.emailTo || customizations.emailConfig?.supportEmail || '',
+
+      // Admin Configuration
+      ADMIN_EMAIL: customizations.adminConfig?.defaultAdminEmail || 'admin@example.com',
+      ADMIN_PASSWORD: customizations.adminConfig?.defaultAdminPassword || this._generateSecurePassword(),
+
+      // JWT Configuration
+      JWT_SECRET: this._generateJWTSecret(),
+      JWT_EXPIRE: '7d',
+
+      // Application Features
+      ENABLE_COD: customizations.features?.enableCOD ? 'true' : 'false',
+      ENABLE_WISHLIST: customizations.features?.enableWishlist ? 'true' : 'false',
+      ENABLE_REVIEWS: customizations.features?.enableReviews ? 'true' : 'false',
+      ENABLE_COUPONS: customizations.features?.enableCoupons ? 'true' : 'false',
+      ENABLE_WHATSAPP: customizations.features?.enableWhatsApp ? 'true' : 'false',
+
+      // WhatsApp Configuration (if enabled)
+      WHATSAPP_NUMBER: credentials.whatsappNumber || '',
+      WHATSAPP_API_KEY: credentials.whatsappApiKey || '',
+
+      // Branding
+      COMPANY_NAME: customizations.brandingChanges?.companyName || customizations.appName,
+      COMPANY_TAGLINE: customizations.brandingChanges?.tagline || '',
+      PRIMARY_COLOR: customizations.brandingChanges?.primaryColor || '#0066ff',
+      SECONDARY_COLOR: customizations.brandingChanges?.secondaryColor || '#ff6b35',
+
+      // SEO Configuration
+      META_TITLE: customizations.seoConfig?.metaTitle || customizations.appName,
+      META_DESCRIPTION: customizations.seoConfig?.metaDescription || '',
+      META_KEYWORDS: (customizations.seoConfig?.keywords || []).join(', '),
+
+      // Session Configuration
+      SESSION_SECRET: this._generateSessionSecret(),
+      COOKIE_MAX_AGE: '86400000', // 24 hours
+
+      // File Upload Configuration
+      MAX_FILE_SIZE: '5242880', // 5MB
+      UPLOAD_PATH: './uploads',
+
+      // Rate Limiting
+      RATE_LIMIT_WINDOW: '900000', // 15 minutes
+      RATE_LIMIT_MAX: '100',
+
+      // Logging
+      LOG_LEVEL: 'info',
+      ENABLE_FILE_LOGGING: 'true'
+    };
+
+    return config;
+  }
+
+  /**
+   * Format environment configuration as .env file content
+   */
+  _formatEnvFile(config, isExample = false) {
+    let content = `# ${config.APP_NAME} - Environment Configuration
+# Generated by GenVedha LLM Service
+# Generated on: ${new Date().toISOString()}
+#
+# IMPORTANT: Keep this file secure and never commit to version control
+# ========================================================================
+
+# Application Configuration
+# ========================================================================
+NODE_ENV=${config.NODE_ENV}
+PORT=${config.PORT}
+APP_NAME="${config.APP_NAME}"
+APP_URL=${config.APP_URL}
+
+# MongoDB Database Configuration
+# ========================================================================
+# Option 1: Full MongoDB URI (recommended)
+MONGODB_URI=${isExample ? 'mongodb+srv://username:password@cluster.mongodb.net/database?retryWrites=true&w=majority' : config.MONGODB_URI}
+
+# Option 2: Individual MongoDB credentials (if MONGODB_URI is not set)
+MONGODB_USERNAME=${isExample ? 'your_mongodb_username' : config.MONGODB_USERNAME}
+MONGODB_PASSWORD=${isExample ? 'your_mongodb_password' : config.MONGODB_PASSWORD}
+MONGODB_CLUSTER=${isExample ? 'cluster0.xxxxx.mongodb.net' : config.MONGODB_CLUSTER}
+MONGODB_DATABASE=${config.MONGODB_DATABASE}
+
+# Razorpay Payment Gateway Configuration
+# ========================================================================
+# Get your keys from: https://dashboard.razorpay.com/app/keys
+RAZORPAY_KEY_ID=${isExample ? 'rzp_test_xxxxxxxxxxxx' : config.RAZORPAY_KEY_ID}
+RAZORPAY_KEY_SECRET=${isExample ? 'your_razorpay_secret' : config.RAZORPAY_KEY_SECRET}
+RAZORPAY_WEBHOOK_SECRET=${isExample ? 'your_webhook_secret' : config.RAZORPAY_WEBHOOK_SECRET}
+
+# Gmail SMTP Configuration
+# ========================================================================
+# For Gmail: Enable "Less secure app access" or use App Password
+# Guide: https://support.google.com/accounts/answer/185833
+EMAIL_HOST=${config.EMAIL_HOST}
+EMAIL_PORT=${config.EMAIL_PORT}
+EMAIL_SECURE=${config.EMAIL_SECURE}
+EMAIL_USER=${isExample ? 'your-email@gmail.com' : config.EMAIL_USER}
+EMAIL_PASSWORD=${isExample ? 'your-gmail-app-password' : config.EMAIL_PASSWORD}
+EMAIL_FROM="${config.EMAIL_FROM}"
+EMAIL_TO=${isExample ? 'support@example.com' : config.EMAIL_TO}
+
+# Admin Configuration
+# ========================================================================
+ADMIN_EMAIL=${config.ADMIN_EMAIL}
+ADMIN_PASSWORD=${isExample ? 'change-this-password' : config.ADMIN_PASSWORD}
+
+# Security Configuration
+# ========================================================================
+JWT_SECRET=${isExample ? 'your-jwt-secret-key-change-this' : config.JWT_SECRET}
+JWT_EXPIRE=${config.JWT_EXPIRE}
+SESSION_SECRET=${isExample ? 'your-session-secret-change-this' : config.SESSION_SECRET}
+COOKIE_MAX_AGE=${config.COOKIE_MAX_AGE}
+
+# Feature Flags
+# ========================================================================
+ENABLE_COD=${config.ENABLE_COD}
+ENABLE_WISHLIST=${config.ENABLE_WISHLIST}
+ENABLE_REVIEWS=${config.ENABLE_REVIEWS}
+ENABLE_COUPONS=${config.ENABLE_COUPONS}
+ENABLE_WHATSAPP=${config.ENABLE_WHATSAPP}
+
+# WhatsApp Integration (if enabled)
+# ========================================================================
+WHATSAPP_NUMBER=${isExample ? '+91xxxxxxxxxx' : config.WHATSAPP_NUMBER}
+WHATSAPP_API_KEY=${isExample ? 'your-whatsapp-api-key' : config.WHATSAPP_API_KEY}
+
+# Branding Configuration
+# ========================================================================
+COMPANY_NAME="${config.COMPANY_NAME}"
+COMPANY_TAGLINE="${config.COMPANY_TAGLINE}"
+PRIMARY_COLOR=${config.PRIMARY_COLOR}
+SECONDARY_COLOR=${config.SECONDARY_COLOR}
+
+# SEO Configuration
+# ========================================================================
+META_TITLE="${config.META_TITLE}"
+META_DESCRIPTION="${config.META_DESCRIPTION}"
+META_KEYWORDS="${config.META_KEYWORDS}"
+
+# File Upload Configuration
+# ========================================================================
+MAX_FILE_SIZE=${config.MAX_FILE_SIZE}
+UPLOAD_PATH=${config.UPLOAD_PATH}
+
+# Rate Limiting
+# ========================================================================
+RATE_LIMIT_WINDOW=${config.RATE_LIMIT_WINDOW}
+RATE_LIMIT_MAX=${config.RATE_LIMIT_MAX}
+
+# Logging Configuration
+# ========================================================================
+LOG_LEVEL=${config.LOG_LEVEL}
+ENABLE_FILE_LOGGING=${config.ENABLE_FILE_LOGGING}
+
+# ========================================================================
+# End of Configuration
+# ========================================================================
+`;
+
+    return content;
+  }
+
+  /**
+   * Sanitize database name
+   */
+  _sanitizeDatabaseName(appName) {
+    return appName
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .slice(0, 50);
+  }
+
+  /**
+   * Generate secure random password
+   */
+  _generateSecurePassword() {
+    const length = 16;
+    const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
+    let password = '';
+    for (let i = 0; i < length; i++) {
+      password += charset.charAt(Math.floor(Math.random() * charset.length));
+    }
+    return password;
+  }
+
+  /**
+   * Generate JWT secret
+   */
+  _generateJWTSecret() {
+    return require('crypto').randomBytes(64).toString('hex');
+  }
+
+  /**
+   * Generate session secret
+   */
+  _generateSessionSecret() {
+    return require('crypto').randomBytes(32).toString('hex');
+  }
+
+  /**
+   * Validate credentials
+   */
+  validateCredentials(credentials) {
+    const errors = [];
+
+    // MongoDB validation
+    if (!credentials.mongodbUri && (!credentials.mongodbUsername || !credentials.mongodbPassword)) {
+      errors.push('MongoDB credentials are required (either MONGODB_URI or username/password)');
+    }
+
+    // Razorpay validation
+    if (!credentials.razorpayKeyId || !credentials.razorpayKeySecret) {
+      errors.push('Razorpay credentials are required (KEY_ID and KEY_SECRET)');
+    }
+
+    // Gmail validation
+    if (!credentials.gmailUser || !credentials.gmailPassword) {
+      errors.push('Gmail credentials are required (email and password/app-password)');
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors
+    };
+  }
+}
+
+module.exports = EnvGenerator;
