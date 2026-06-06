@@ -13,29 +13,23 @@ const execAsync = promisify(exec);
 
 class TemplateManager {
   constructor() {
-    this.templatePath = config.template.localPath;
-    this.repoUrl = config.template.repoUrl;
-    this.branch = config.template.branch;
+    // Use generic template (pre-cleaned, no Git operations needed)
+    this.templatePath = path.join(__dirname, '../templates/generic-template');
     this.isInitialized = false;
   }
 
   /**
-   * Initialize the template (clone if not exists, update if exists)
+   * Initialize the template (verify it exists)
    */
   async initialize() {
     try {
       console.log('📦 Initializing template manager...');
 
-      // Ensure templates directory exists
-      await fs.ensureDir(path.dirname(this.templatePath));
-
-      // Check if template already exists
-      if (await fs.pathExists(this.templatePath)) {
-        console.log('✅ Template already exists, updating...');
-        await this.updateTemplate();
-      } else {
-        console.log('📥 Cloning template from GitHub...');
-        await this.cloneTemplate();
+      // Check if generic template exists
+      if (!await fs.pathExists(this.templatePath)) {
+        throw new Error(
+          'Generic template not found! Run: node scripts/create-generic-template.js'
+        );
       }
 
       this.isInitialized = true;

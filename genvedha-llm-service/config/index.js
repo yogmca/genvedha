@@ -18,7 +18,7 @@ const config = {
   template: {
     repoUrl: process.env.TEMPLATE_REPO_URL || 'https://github.com/yogmca/coorgmasala.git',
     branch: process.env.TEMPLATE_BRANCH || 'coorg_masal_genvedha_template',
-    localPath: process.env.TEMPLATE_LOCAL_PATH || './templates/coorgmasala'
+    localPath: process.env.TEMPLATE_LOCAL_PATH || './templates/generic-template'
   },
 
   // Generated Apps Configuration

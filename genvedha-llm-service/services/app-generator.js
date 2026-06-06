@@ -10,6 +10,7 @@ const ClaudeClient = require('./claude-client');
 const TemplateManager = require('./template-manager');
 const EnvGenerator = require('./env-generator');
 const CodeCustomizer = require('./code-customizer');
+const UICustomizer = require('./ui-customizer');
 const { config } = require('../config');
 
 class AppGenerator {
@@ -18,6 +19,7 @@ class AppGenerator {
     this.templateManager = new TemplateManager();
     this.envGenerator = new EnvGenerator();
     this.codeCustomizer = new CodeCustomizer();
+    this.uiCustomizer = new UICustomizer();
     this.generatedAppsPath = config.generatedApps.basePath;
     this.activeGenerations = new Map();
   }
@@ -56,6 +58,10 @@ class AppGenerator {
     const startTime = Date.now();
 
     try {
+                                                                        // Step 0: Validate input parameters before starting generation
+      console.log('🔍 Step 0: Validating input parameters...');
+      this._validateGenerationParams(params);
+
       console.log(`\n${'='.repeat(60)}`);
       console.log(`🎨 Starting App Generation: ${generationId}`);
       console.log(`${'='.repeat(60)}\n`);
@@ -95,6 +101,11 @@ class AppGenerator {
       await this.templateManager.copyTemplate(appPath);
       this._updateGenerationStatus(generationId, 'copying', 40);
 
+      // Step 3.5: Inject business content into generic template placeholders
+      console.log('📝 Step 3.5: Injecting business content...');
+      await this.injectBusinessContent(appPath, customizations);
+      this._updateGenerationStatus(generationId, 'injecting', 45);
+
       // Step 4: Generate environment configuration
       console.log('⚙️  Step 4: Generating environment configuration...');
       const envConfig = await this.envGenerator.generateEnvFile({
@@ -111,7 +122,15 @@ class AppGenerator {
         customizations,
         templateFiles
       });
-      this._updateGenerationStatus(generationId, 'modifying', 80);
+      this._updateGenerationStatus(generationId, 'modifying', 70);
+
+      // Step 5.5: Apply UI customizations
+      console.log('🎨 Step 5.5: Applying UI customizations...');
+      const uiModifications = await this.uiCustomizer.applyUICustomizations({
+        appPath,
+        customizations
+      });
+      this._updateGenerationStatus(generationId, 'customizing-ui', 80);
 
       // Step 6: Install dependencies (optional, can be done later)
       console.log('📦 Step 6: Preparing package.json...');
@@ -121,6 +140,17 @@ class AppGenerator {
       // Step 7: Generate documentation
       console.log('📝 Step 7: Generating documentation...');
       await this._generateDocumentation(appPath, customizations, envConfig);
+
+      // Step 8: Post-generation validation — ensure no unreplaced placeholders remain
+      console.log('✅ Step 8: Validating generated app (no leftover placeholders)...');
+      const validationResult = await this._validateGeneratedApp(appPath);
+      if (validationResult.unreplacedCount > 0) {
+        console.warn(`⚠️  Found ${validationResult.unreplacedCount} unreplaced placeholders in ${validationResult.filesWithIssues.length} files — auto-fixing...`);
+        // Re-run injection to catch any stragglers
+        await this.injectBusinessContent(appPath, customizations);
+      } else {
+        console.log('✅ No unreplaced placeholders found — app is clean!');
+      }
 
       const duration = Date.now() - startTime;
       this._updateGenerationStatus(generationId, 'completed', 100);
@@ -143,9 +173,11 @@ class AppGenerator {
         customizations,
         envConfig,
         codeModifications,
+        uiModifications,
         metadata: {
           claudeTokens: customizationResult.metadata.tokensUsed,
-          filesModified: codeModifications.filesModified,
+          filesModified: codeModifications.filesModified + uiModifications.filesModified,
+          uiComponentsUpdated: uiModifications.componentsUpdated,
           timestamp: new Date().toISOString()
         }
       };
@@ -163,6 +195,184 @@ class AppGenerator {
         duration: Date.now() - startTime
       };
     }
+  }
+
+  /**
+   * Inject business-specific content into generic template placeholders
+   * Replaces ALL {{PLACEHOLDER}} patterns across ALL source files
+   */
+  async injectBusinessContent(appPath, customizations) {
+    try {
+      const businessName = customizations.appName || 'My Business';
+      const businessSlug = businessName.toLowerCase().replace(/\s+/g, '-');
+      const businessType = customizations.businessType || 'product';
+      const tagline = customizations.brandingChanges?.tagline || 'Quality Products';
+      const contactEmail = customizations.adminConfig?.defaultAdminEmail || `support@${businessSlug}.com`;
+      const location = customizations.brandingChanges?.location || 'India';
+      
+      // Build dynamic category replacements from the categories array
+      const categories = customizations.productCategories || [];
+      const categoryReplacements = {};
+      
+      // First category
+      if (categories.length > 0) {
+        categoryReplacements['{{PRODUCT_CATEGORY}}'] = categories[0].toLowerCase().replace(/\s+/g, '-');
+        categoryReplacements['{{PRODUCT_CATEGORY_NAME}}'] = categories[0];
+      } else {
+        categoryReplacements['{{PRODUCT_CATEGORY}}'] = 'general';
+        categoryReplacements['{{PRODUCT_CATEGORY_NAME}}'] = 'General';
+      }
+      
+      // Second category
+      if (categories.length > 1) {
+        categoryReplacements['{{PRODUCT_CATEGORY_2}}'] = categories[1].toLowerCase().replace(/\s+/g, '-');
+        categoryReplacements['{{PRODUCT_CATEGORY_2_NAME}}'] = categories[1];
+      } else {
+        categoryReplacements['{{PRODUCT_CATEGORY_2}}'] = categoryReplacements['{{PRODUCT_CATEGORY}}'];
+        categoryReplacements['{{PRODUCT_CATEGORY_2_NAME}}'] = categoryReplacements['{{PRODUCT_CATEGORY_NAME}}'];
+      }
+      
+      // Handle any number of additional categories ({{PRODUCT_CATEGORY_N}} pattern)
+      for (let i = 2; i < categories.length; i++) {
+        categoryReplacements[`{{PRODUCT_CATEGORY_${i + 1}}}`] = categories[i].toLowerCase().replace(/\s+/g, '-');
+        categoryReplacements[`{{PRODUCT_CATEGORY_${i + 1}_NAME}}`] = categories[i];
+      }
+      
+      // Build product examples from categories
+      const productExamples = categories.length > 0
+        ? `Premium ${categories.join(', ')} and more.`
+        : `Premium quality ${businessType} products.`;
+
+      // Build a product name from the business type (e.g. "aquatic plants" -> "Aquatic Plant")
+      const productName = businessType.charAt(0).toUpperCase() + businessType.slice(1).replace(/s$/, '');
+
+      // Create comprehensive replacement map — covers ALL 14 template placeholders
+      const replacements = {
+        '{{BUSINESS_NAME}}': businessName,
+        '{{BUSINESS_SLUG}}': businessSlug,
+        '{{BUSINESS_TAGLINE}}': tagline,
+        '{{TAGLINE}}': tagline,
+        '{{PRODUCT_TYPE}}': businessType,
+        '{{PRODUCT_TYPE_PLURAL}}': businessType + 's',
+        '{{PRODUCT_TYPE_CAPITALIZED}}': businessType.charAt(0).toUpperCase() + businessType.slice(1),
+        '{{PRODUCT_NAME}}': productName,
+        '{{PRODUCT_DESCRIPTION}}': `premium quality ${businessType}`,
+        '{{PRODUCT_EXAMPLES}}': productExamples,
+        '{{CONTACT_EMAIL}}': contactEmail,
+        '{{LOCATION}}': location,
+        '{{REGION}}': location,
+        '{{ORIGIN}}': location,
+        ...categoryReplacements
+      };
+      
+      // Recursively find ALL source files to inject content into
+      // (not just a hardcoded list — scan the entire app directory)
+      const allFiles = await this._getAllSourceFiles(appPath);
+      
+      let injectedCount = 0;
+      
+      for (const filePath of allFiles) {
+        try {
+          let content = await fs.readFile(filePath, 'utf8');
+          let modified = false;
+          
+          // Replace all known placeholders
+          for (const [placeholder, value] of Object.entries(replacements)) {
+            if (content.includes(placeholder)) {
+              content = content.replace(new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'), value);
+              modified = true;
+            }
+          }
+          
+          // Catch any remaining {{PLACEHOLDER}} patterns and replace with sensible defaults
+          const remainingPlaceholders = content.match(/\{\{([A-Z_]+)\}\}/g);
+          if (remainingPlaceholders) {
+            for (const placeholder of remainingPlaceholders) {
+              const key = placeholder.replace(/\{\{|\}\}/g, '');
+              const defaultValue = this._getDefaultForPlaceholder(key, businessName, businessType);
+              content = content.replace(new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'), defaultValue);
+              modified = true;
+              console.log(`  ⚠️  Auto-replaced unknown placeholder ${placeholder} with "${defaultValue}" in ${path.relative(appPath, filePath)}`);
+            }
+          }
+          
+          if (modified) {
+            await fs.writeFile(filePath, content, 'utf8');
+            injectedCount++;
+          }
+        } catch (fileError) {
+          // Skip binary files or files that can't be read as text
+          continue;
+        }
+      }
+      
+      console.log(`✅ Injected content into ${injectedCount} files (scanned ${allFiles.length} total files)`);
+      return true;
+    } catch (error) {
+      console.error('❌ Failed to inject business content:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Get all source files recursively (excluding node_modules, .git, images, etc.)
+   */
+  async _getAllSourceFiles(dirPath) {
+    const files = [];
+    const textExtensions = ['.js', '.jsx', '.ts', '.tsx', '.json', '.html', '.css', '.scss', '.md', '.env', '.yaml', '.yml', '.txt', '.sh', '.conf'];
+    
+    async function walk(dir) {
+      try {
+        const entries = await fs.readdir(dir, { withFileTypes: true });
+        for (const entry of entries) {
+          const fullPath = path.join(dir, entry.name);
+          
+          // Skip directories we don't want to process
+          if (entry.isDirectory()) {
+            if (['node_modules', '.git', 'images', 'uploads', 'dist', 'build'].includes(entry.name)) {
+              continue;
+            }
+            await walk(fullPath);
+          } else {
+            // Only process text-based files
+            const ext = path.extname(entry.name).toLowerCase();
+            if (textExtensions.includes(ext) || entry.name.startsWith('.env')) {
+              files.push(fullPath);
+            }
+          }
+        }
+      } catch (err) {
+        // Skip directories we can't read
+      }
+    }
+    
+    await walk(dirPath);
+    return files;
+  }
+
+  /**
+   * Get a sensible default value for an unknown placeholder
+   */
+  _getDefaultForPlaceholder(key, businessName, businessType) {
+    const defaults = {
+      'COMPANY_NAME': businessName,
+      'APP_NAME': businessName,
+      'STORE_NAME': businessName,
+      'SITE_NAME': businessName,
+      'BRAND_NAME': businessName,
+      'SHOP_NAME': businessName,
+      'CATEGORY': businessType,
+      'CATEGORY_NAME': businessType.charAt(0).toUpperCase() + businessType.slice(1),
+      'PHONE': '',
+      'ADDRESS': '',
+      'CITY': '',
+      'STATE': '',
+      'COUNTRY': 'India',
+      'CURRENCY': '₹',
+      'CURRENCY_CODE': 'INR',
+    };
+    
+    return defaults[key] || businessName;
   }
 
   /**
@@ -193,6 +403,62 @@ class AppGenerator {
       generation.lastUpdate = Date.now();
       if (error) generation.error = error;
     }
+  }
+
+  /**
+   * Validate generation parameters before starting
+   * Ensures all required data is present to avoid incomplete apps
+   */
+  _validateGenerationParams(params) {
+    const errors = [];
+
+    if (!params) {
+      throw new Error('Generation parameters are required');
+    }
+
+    if (!params.userRequirements || typeof params.userRequirements !== 'string' || params.userRequirements.trim().length < 10) {
+      errors.push('userRequirements must be a string with at least 10 characters describing the business');
+    }
+
+    // Validate credentials if provided
+    if (params.credentials) {
+      if (params.credentials.mongoUri && !params.credentials.mongoUri.startsWith('mongodb')) {
+        errors.push('MongoDB URI must start with "mongodb://" or "mongodb+srv://"');
+      }
+    }
+
+    if (errors.length > 0) {
+      throw new Error(`Validation failed:\n${errors.map(e => `  - ${e}`).join('\n')}`);
+    }
+
+    console.log('✅ Input validation passed');
+  }
+
+  /**
+   * Validate generated app — check for unreplaced {{PLACEHOLDER}} patterns
+   */
+  async _validateGeneratedApp(appPath) {
+    const allFiles = await this._getAllSourceFiles(appPath);
+    const filesWithIssues = [];
+    let unreplacedCount = 0;
+
+    for (const filePath of allFiles) {
+      try {
+        const content = await fs.readFile(filePath, 'utf8');
+        // Match {{PLACEHOLDER}} patterns but exclude style={{ (JSX inline styles)
+        const matches = content.match(/\{\{([A-Z][A-Z_0-9]+)\}\}/g);
+        if (matches) {
+          const relativePath = path.relative(appPath, filePath);
+          filesWithIssues.push({ file: relativePath, placeholders: matches });
+          unreplacedCount += matches.length;
+          console.warn(`  ⚠️  ${relativePath}: ${matches.join(', ')}`);
+        }
+      } catch (err) {
+        continue;
+      }
+    }
+
+    return { unreplacedCount, filesWithIssues };
   }
 
   /**

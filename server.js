@@ -9,6 +9,60 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Port management for generated apps
+const fs = require('fs');
+const portRegistryPath = path.join(__dirname, 'generated-apps', 'port-registry.json');
+
+// Initialize port registry
+function initPortRegistry() {
+  const registryDir = path.join(__dirname, 'generated-apps');
+  if (!fs.existsSync(registryDir)) {
+    fs.mkdirSync(registryDir, { recursive: true });
+  }
+  if (!fs.existsSync(portRegistryPath)) {
+    fs.writeFileSync(portRegistryPath, JSON.stringify({ apps: {}, nextPort: 5000 }, null, 2));
+  }
+}
+
+// Get next available port
+function getNextAvailablePort() {
+  try {
+    const registry = JSON.parse(fs.readFileSync(portRegistryPath, 'utf-8'));
+    const usedPorts = Object.values(registry.apps).map(app => app.port);
+    let nextPort = registry.nextPort || 5000;
+    
+    // Find next available port
+    while (usedPorts.includes(nextPort)) {
+      nextPort++;
+    }
+    
+    return nextPort;
+  } catch (error) {
+    console.error('Error reading port registry:', error);
+    return 5000;
+  }
+}
+
+// Register app with port
+function registerAppPort(appName, port, databaseName) {
+  try {
+    const registry = JSON.parse(fs.readFileSync(portRegistryPath, 'utf-8'));
+    registry.apps[appName] = {
+      port,
+      databaseName,
+      createdAt: new Date().toISOString()
+    };
+    registry.nextPort = port + 1;
+    fs.writeFileSync(portRegistryPath, JSON.stringify(registry, null, 2));
+    console.log(`✅ Registered ${appName} on port ${port}`);
+  } catch (error) {
+    console.error('Error registering app port:', error);
+  }
+}
+
+// Initialize port registry on startup
+initPortRegistry();
+
 // Middleware
 app.use(cors());
 app.use(bodyParser.json());
@@ -270,13 +324,311 @@ app.get('/api/contacts', async (req, res) => {
   }
 });
 
+// Genvedha Guru - Requirements Analysis API (LLM-based conversation)
+app.post('/api/genvedha/analyze-requirements', async (req, res) => {
+  try {
+    const { conversationHistory, currentRequirements, userMessage } = req.body;
+    
+    // Use the ClaudeClient from genvedha-llm-service (it handles model configuration)
+    const ClaudeClient = require('./genvedha-llm-service/services/claude-client');
+    
+    let claudeClient;
+    try {
+      claudeClient = new ClaudeClient();
+    } catch (error) {
+      // Claude not configured, use fallback
+      return res.status(200).json({
+        success: false,
+        error: 'LLM not configured',
+        message: 'Using rule-based processing'
+      });
+    }
+
+    // STEP 1: Extract requirements from user message using regex (reliable)
+    const extractedInfo = {};
+    const trimmedMessage = userMessage.trim();
+    
+    // Extract business name
+    if (!currentRequirements.businessName) {
+      const namePatterns = [
+        /create\s+([A-Z][a-zA-Z0-9]+)/i,
+        /(?:name|call|called)\s+(?:is|it)?\s*['""]?([A-Z][a-zA-Z0-9\s]+?)['""]?(?:\s+selling|\s+for|\.|,|$)/i,
+        /(?:store|shop|business)\s+(?:called|named)\s+['""]?([A-Z][a-zA-Z0-9\s]+?)['""]?/i
+      ];
+      for (const p of namePatterns) {
+        const m = userMessage.match(p);
+        if (m && m[1] && m[1].trim().length >= 2) {
+          extractedInfo.businessName = m[1].trim();
+          break;
+        }
+      }
+      // If user just types a name as answer (1-3 words, no common words)
+      if (!extractedInfo.businessName) {
+        const wordCount = trimmedMessage.split(/\s+/).length;
+        const isCommonWord = /^(yes|no|ok|sure|hi|hello|hey|thanks|thank|please|help|how|what|why|when|where|i\s|my\s)/i.test(trimmedMessage);
+        if (wordCount <= 3 && !isCommonWord && trimmedMessage.length >= 2 && trimmedMessage.length <= 30) {
+          extractedInfo.businessName = trimmedMessage;
+          console.log('📌 Detected business name from short answer:', extractedInfo.businessName);
+        }
+      }
+    }
+    
+    // Extract product type
+    if (!currentRequirements.productType) {
+      const productPatterns = [
+        /selling\s+([a-zA-Z\s]+?)(?:\.|,|Categories|Description|$)/i,
+        /sell\s+([a-zA-Z\s]+?)(?:\.|,|Categories|Description|$)/i,
+        /(?:i\s+)?(?:want to |will )?sell\s+([a-zA-Z\s]+)/i
+      ];
+      for (const p of productPatterns) {
+        const m = userMessage.match(p);
+        if (m && m[1] && m[1].trim().length >= 3) {
+          extractedInfo.productType = m[1].trim();
+          break;
+        }
+      }
+      // If user just types the product type as answer (when we already have businessName)
+      if (!extractedInfo.productType && currentRequirements.businessName && !currentRequirements.productType) {
+        const isCommonWord = /^(yes|no|ok|sure|hi|hello|hey|thanks)/i.test(trimmedMessage);
+        if (!isCommonWord && trimmedMessage.length >= 3 && trimmedMessage.length <= 50 && !trimmedMessage.includes(',')) {
+          extractedInfo.productType = trimmedMessage;
+          console.log('📌 Detected product type from answer:', extractedInfo.productType);
+        }
+      }
+    }
+    
+    // Extract categories - flexible patterns
+    if (!currentRequirements.categories) {
+      const catPatterns = [
+        /Categories?:\s*([a-zA-Z\s,]+?)(?:\.|Description|$)/i,
+        /categories?\s+(?:are|like|include|would be)\s*:?\s*([a-zA-Z\s,]+?)(?:\.|$)/i
+      ];
+      for (const p of catPatterns) {
+        const m = userMessage.match(p);
+        if (m && m[1]) {
+          const cats = m[1].split(',').map(c => c.trim()).filter(c => c.length > 0);
+          if (cats.length >= 1) {
+            extractedInfo.categories = cats;
+            break;
+          }
+        }
+      }
+      // If user types comma-separated items (when we already have businessName and productType)
+      if (!extractedInfo.categories && currentRequirements.businessName && currentRequirements.productType) {
+        if (trimmedMessage.includes(',')) {
+          const commaItems = trimmedMessage.split(',').map(c => c.trim()).filter(c => c.length > 0);
+          if (commaItems.length >= 2) {
+            extractedInfo.categories = commaItems;
+            console.log('📌 Detected categories from comma-separated answer:', extractedInfo.categories);
+          }
+        }
+      }
+    }
+    
+    // Extract description
+    if (!currentRequirements.description) {
+      const descMatch = userMessage.match(/Description:\s*(.+?)(?:\.|Categories|$)/i);
+      if (descMatch && descMatch[1]) {
+        extractedInfo.description = descMatch[1].trim();
+      }
+    }
+    
+    console.log('📋 Regex extracted info:', extractedInfo);
+    
+    // Merge with current requirements
+    const updatedRequirements = { ...currentRequirements };
+    for (const [key, value] of Object.entries(extractedInfo)) {
+      if (value !== null && value !== undefined && value !== '') {
+        updatedRequirements[key] = value;
+      }
+    }
+    
+    // Check if all requirements are gathered (description is optional)
+    const allGathered = !!(
+      updatedRequirements.businessName &&
+      updatedRequirements.productType &&
+      updatedRequirements.categories &&
+      updatedRequirements.categories.length >= 1
+    );
+    
+    // Auto-generate description if we have everything else
+    if (allGathered && !updatedRequirements.description) {
+      updatedRequirements.description = `${updatedRequirements.businessName} - ${updatedRequirements.productType} e-commerce platform`;
+      extractedInfo.description = updatedRequirements.description;
+    }
+    
+    console.log('📋 Updated requirements:', updatedRequirements);
+    console.log('✅ All gathered:', allGathered);
+
+    // STEP 2: Use LLM for conversational response
+    const missingFields = [];
+    if (!updatedRequirements.businessName) missingFields.push('business name');
+    if (!updatedRequirements.productType) missingFields.push('product type');
+    if (!updatedRequirements.categories) missingFields.push('product categories');
+    
+    let conversationPrompt;
+    
+    if (allGathered) {
+      conversationPrompt = `You are Genvedha Guru, an e-commerce app creator. The user has provided ALL requirements:
+
+Business Name: ${updatedRequirements.businessName}
+Product Type: ${updatedRequirements.productType}
+Description: ${updatedRequirements.description}
+Categories: ${updatedRequirements.categories.join(', ')}
+
+Show a neat summary of the collected requirements. Tell the user you're now ready to generate their "${updatedRequirements.businessName}" e-commerce app. Be enthusiastic but brief. ONLY discuss e-commerce.`;
+    } else if (missingFields.length === 3) {
+      // First interaction - ask for business name
+      conversationPrompt = `You are Genvedha Guru, an e-commerce app creator. The user said: "${userMessage}"
+
+This is the start of the conversation. Welcome the user warmly and ask them: "What would you like to name your e-commerce business?"
+
+Be friendly and brief. ONLY discuss e-commerce. If user asks off-topic, redirect them politely.`;
+    } else {
+      // Some info collected, ask for the next missing field
+      const nextQuestion = !updatedRequirements.businessName
+        ? 'What would you like to name your e-commerce business?'
+        : !updatedRequirements.productType
+        ? `What type of products will ${updatedRequirements.businessName} be selling?`
+        : !updatedRequirements.categories
+        ? `What product categories would you like for ${updatedRequirements.businessName}? (Please list them separated by commas, e.g., "Category1, Category2, Category3")`
+        : 'Tell me more about your business.';
+      
+      conversationPrompt = `You are Genvedha Guru, an e-commerce app creator. The user said: "${userMessage}"
+
+Already collected: ${JSON.stringify(updatedRequirements)}
+
+Acknowledge what the user just provided, then ask this EXACT next question: "${nextQuestion}"
+
+Be friendly and brief. Ask only ONE question. ONLY discuss e-commerce. If user asks off-topic, redirect them.`;
+    }
+
+    const messages = [{
+      role: 'user',
+      content: conversationPrompt
+    }];
+
+    const response = await claudeClient.client.messages.create({
+      model: claudeClient.model,
+      max_tokens: 500,
+      messages: messages
+    });
+
+    const aiResponse = response.content[0].text;
+    console.log('🤖 LLM response:', aiResponse.substring(0, 200));
+
+    res.status(200).json({
+      success: true,
+      response: aiResponse,
+      extractedInfo: extractedInfo,
+      allRequirementsGathered: allGathered
+    });
+
+  } catch (error) {
+    console.error('❌ Requirements analysis failed:', error);
+    res.status(200).json({
+      success: false,
+      error: 'Analysis failed',
+      message: error.message
+    });
+  }
+});
+
+// Genvedha Guru - App Generation API
+app.post('/api/genvedha/generate', async (req, res) => {
+  try {
+    const { businessName, productType, description, categories, mongoUri, databaseName } = req.body;
+    
+    // Validate required fields
+    if (!businessName || !productType || !categories) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields',
+        message: 'businessName, productType, and categories are required'
+      });
+    }
+
+    console.log('\n🚀 Genvedha Guru - New App Generation Request');
+    console.log('📋 Business Name:', businessName);
+    console.log('📦 Product Type:', productType);
+    console.log('📂 Categories:', categories.length);
+
+    // Auto-assign next available port
+    const assignedPort = getNextAvailablePort();
+    const dbName = databaseName || businessName.toLowerCase().replace(/\s+/g, '_') + '_db';
+
+    console.log(`🔌 Auto-assigned port: ${assignedPort}`);
+
+    // Prepare the app generation request
+    const appConfig = {
+      businessName,
+      productType,
+      description: description || `${businessName} - ${productType} E-commerce Platform`,
+      categories,
+      port: assignedPort,
+      mongoUri: mongoUri || 'mongodb://localhost:27017',
+      databaseName: dbName
+    };
+
+    // Generate the app using the LLM service
+    const AppGenerator = require('./genvedha-llm-service/services/app-generator');
+    const appGenerator = new AppGenerator();
+    await appGenerator.initialize();
+
+    const userRequirements = `Create an e-commerce app called "${businessName}" selling ${productType}. Description: ${description || businessName + ' e-commerce platform'}. Categories: ${categories.map(c => c.name || c).join(', ')}. Port: ${assignedPort}. Database: ${dbName}.`;
+    
+    const result = await appGenerator.generateApp({
+      userRequirements: userRequirements,
+      credentials: {
+        mongoUri: mongoUri || 'mongodb://localhost:27017',
+        databaseName: dbName
+      },
+      userId: 'genvedha-guru-user'
+    });
+
+    console.log('✅ App generated successfully!');
+    console.log('📁 Output directory:', result.outputDir);
+
+    // Register the app with its assigned port
+    registerAppPort(businessName, assignedPort, dbName);
+
+    res.status(200).json({
+      success: true,
+      message: 'E-commerce app generated successfully!',
+      appName: businessName,
+      outputDir: result.outputDir,
+      port: assignedPort,
+      categories: categories.length,
+      filesGenerated: result.filesGenerated || 0,
+      nextSteps: [
+        `cd ${result.outputDir}`,
+        'npm install',
+        'npm start'
+      ],
+      portInfo: {
+        assigned: assignedPort,
+        message: `Your app will run on port ${assignedPort}`
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ App generation failed:', error);
+    res.status(500).json({
+      success: false,
+      error: 'App generation failed',
+      message: error.message
+    });
+  }
+});
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({
     success: true,
     message: 'Server is running',
     database: db ? 'connected' : 'disconnected',
-    email: emailTransporter ? 'configured' : 'not configured'
+    email: emailTransporter ? 'configured' : 'not configured',
+    genvedhaService: 'available'
   });
 });
 

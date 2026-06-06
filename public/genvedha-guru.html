@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Genvedha Guru - AI E-commerce App Creator</title>
+    <link rel="stylesheet" href="genvedha-guru.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-wrapper">
+                <div class="logo">
+                    <h1>GenVedha Guru</h1>
+                    <span class="logo-subtitle">AI E-commerce App Creator</span>
+                </div>
+                <a href="index.html" class="btn-back">← Back to Home</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="main-container">
+        <!-- Robot Animation Section -->
+        <div class="robot-section">
+            <div class="robot-container">
+                <div class="robot" id="robot">
+                    <!-- Robot Head -->
+                    <div class="robot-head">
+                        <div class="antenna">
+                            <div class="antenna-ball"></div>
+                        </div>
+                        <div class="robot-face">
+                            <div class="eye eye-left">
+                                <div class="pupil"></div>
+                            </div>
+                            <div class="eye eye-right">
+                                <div class="pupil"></div>
+                            </div>
+                            <div class="mouth">
+                                <div class="mouth-line"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Robot Body -->
+                    <div class="robot-body">
+                        <div class="chest-panel">
+                            <div class="status-light"></div>
+                            <div class="screen-display">
+                                <span id="robotStatus">READY</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Robot Arms -->
+                    <div class="robot-arm arm-left">
+                        <div class="arm-segment"></div>
+                        <div class="hand"></div>
+                    </div>
+                    <div class="robot-arm arm-right">
+                        <div class="arm-segment"></div>
+                        <div class="hand"></div>
+                    </div>
+                </div>
+                
+                <!-- Speech Bubble -->
+                <div class="speech-bubble" id="speechBubble">
+                    <p id="robotSpeech">Hello! I'm Genvedha Guru, your AI assistant. I can help you create a complete e-commerce app in less than a minute! 🚀</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Interface -->
+        <div class="chat-section">
+            <div class="chat-container">
+                <div class="chat-header">
+                    <h2>Create Your E-commerce App</h2>
+                    <p>Answer a few questions and watch your app come to life!</p>
+                </div>
+                
+                <div class="chat-messages" id="chatMessages">
+                    <!-- Messages will be added here dynamically -->
+                </div>
+                
+                <div class="chat-input-container" id="chatInputContainer">
+                    <input 
+                        type="text" 
+                        id="chatInput" 
+                        placeholder="Type your answer here..."
+                        autocomplete="off"
+                    >
+                    <button id="sendButton" class="btn-send">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                            <path d="M22 2L11 13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Quick Action Buttons -->
+                <div class="quick-actions" id="quickActions">
+                    <button class="quick-btn" data-action="start">🚀 Start Creating</button>
+                    <button class="quick-btn" data-action="example">💡 Show Example</button>
+                    <button class="quick-btn" data-action="help">❓ How It Works</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Requirements Preview Modal -->
+    <div class="modal" id="requirementsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>📋 Review Your App Requirements</h2>
+                <button class="modal-close" id="closeModal">&times;</button>
+            </div>
+            <div class="modal-body" id="requirementsPreview">
+                <!-- Requirements will be displayed here -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="editRequirements">✏️ Edit</button>
+                <button class="btn btn-primary" id="approveRequirements">✅ Approve & Create App</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- App Generation Progress Modal -->
+    <div class="modal" id="progressModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>🎨 Creating Your App...</h2>
+            </div>
+            <div class="modal-body">
+                <div class="progress-container">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <p class="progress-text" id="progressText">Initializing...</p>
+                    <div class="progress-steps" id="progressSteps">
+                        <!-- Progress steps will be added here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Success Modal -->
+    <div class="modal" id="successModal">
+        <div class="modal-content success-content">
+            <div class="modal-header">
+                <h2>🎉 Your App is Ready!</h2>
+            </div>
+            <div class="modal-body">
+                <div class="success-animation">
+                    <div class="checkmark">✓</div>
+                </div>
+                <h3 id="appName">Your E-commerce App</h3>
+                <p>Your app has been successfully created and is ready to use!</p>
+                <div class="app-details" id="appDetails">
+                    <!-- App details will be displayed here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" id="viewApp">🚀 Launch App</button>
+                <button class="btn btn-secondary" id="createAnother">➕ Create Another</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="genvedha-guru.js?v=20260531v5"></script>
+</body>
+</html>

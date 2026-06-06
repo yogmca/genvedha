@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Genvedha Guru Chatbot</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .test-section {
+            background: #f5f5f5;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        #logs {
+            background: #000;
+            color: #0f0;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+        .log-entry {
+            margin: 5px 0;
+        }
+        .error { color: #f00; }
+        .success { color: #0f0; }
+        .info { color: #0ff; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Genvedha Guru Chatbot Test</h1>
+    
+    <div class="test-section">
+        <h2>Test 1: Check if JavaScript is loaded</h2>
+        <button onclick="testJavaScriptLoaded()">Run Test</button>
+        <div id="test1-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test 2: Check API Endpoint</h2>
+        <button onclick="testAPIEndpoint()">Run Test</button>
+        <div id="test2-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test 3: Test Rule-Based Processing</h2>
+        <button onclick="testRuleBasedProcessing()">Run Test</button>
+        <div id="test3-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test 4: Open Actual Chatbot</h2>
+        <button onclick="window.open('/genvedha-guru.html', '_blank')">Open Chatbot</button>
+        <p>After opening, press F12 to see console logs</p>
+    </div>
+    
+    <h2>📋 Test Logs</h2>
+    <button onclick="clearLogs()">Clear Logs</button>
+    <div id="logs"></div>
+    
+    <script>
+        function log(message, type = 'info') {
+            const logsDiv = document.getElementById('logs');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logsDiv.appendChild(entry);
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+            console.log(message);
+        }
+        
+        function clearLogs() {
+            document.getElementById('logs').innerHTML = '';
+        }
+        
+        function testJavaScriptLoaded() {
+            log('Testing if genvedha-guru.js is accessible...', 'info');
+            
+            fetch('/genvedha-guru.js')
+                .then(response => {
+                    if (response.ok) {
+                        log('✅ genvedha-guru.js file exists and is accessible', 'success');
+                        document.getElementById('test1-result').innerHTML = '<p style="color: green;">✅ JavaScript file loaded successfully</p>';
+                    } else {
+                        log('❌ genvedha-guru.js returned status: ' + response.status, 'error');
+                        document.getElementById('test1-result').innerHTML = '<p style="color: red;">❌ JavaScript file not found</p>';
+                    }
+                })
+                .catch(error => {
+                    log('❌ Error loading genvedha-guru.js: ' + error.message, 'error');
+                    document.getElementById('test1-result').innerHTML = '<p style="color: red;">❌ Error: ' + error.message + '</p>';
+                });
+        }
+        
+        async function testAPIEndpoint() {
+            log('Testing API endpoint /api/genvedha/analyze-requirements...', 'info');
+            
+            try {
+                const response = await fetch('/api/genvedha/analyze-requirements', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        conversationHistory: [
+                            { role: 'user', content: 'I want to sell plants' }
+                        ],
+                        currentRequirements: {
+                            businessName: null,
+                            productType: null,
+                            description: null,
+                            categories: null
+                        },
+                        userMessage: 'I want to sell plants'
+                    })
+                });
+                
+                log('API response status: ' + response.status, 'info');
+                
+                const result = await response.json();
+                log('API response: ' + JSON.stringify(result, null, 2), 'info');
+                
+                if (result.success) {
+                    log('✅ API endpoint is working!', 'success');
+                    document.getElementById('test2-result').innerHTML = '<p style="color: green;">✅ API working! Response: ' + result.response + '</p>';
+                } else {
+                    log('⚠️ API returned success=false (will use fallback mode)', 'info');
+                    document.getElementById('test2-result').innerHTML = '<p style="color: orange;">⚠️ API not configured (using fallback mode)</p>';
+                }
+            } catch (error) {
+                log('❌ API test failed: ' + error.message, 'error');
+                document.getElementById('test2-result').innerHTML = '<p style="color: red;">❌ Error: ' + error.message + '</p>';
+            }
+        }
+        
+        function testRuleBasedProcessing() {
+            log('Testing rule-based requirement extraction...', 'info');
+            
+            const testMessages = [
+                'I want to create AquaGarden',
+                'I will be selling aquatic plants',
+                'Categories: Floating Plants, Stem Plants, Moss'
+            ];
+            
+            const requirements = {
+                businessName: null,
+                productType: null,
+                categories: null
+            };
+            
+            testMessages.forEach(message => {
+                log('Processing: ' + message, 'info');
+                
+                // Test business name extraction
+                if (!requirements.businessName) {
+                    const nameMatch = message.match(/(?:create|name|called)\s+([A-Z][a-zA-Z0-9\s]+)/i);
+                    if (nameMatch) {
+                        requirements.businessName = nameMatch[1].trim();
+                        log('  → Extracted business name: ' + requirements.businessName, 'success');
+                    }
+                }
+                
+                // Test product type extraction
+                if (!requirements.productType) {
+                    const productMatch = message.match(/selling\s+([a-zA-Z\s]+)/i);
+                    if (productMatch) {
+                        requirements.productType = productMatch[1].trim();
+                        log('  → Extracted product type: ' + requirements.productType, 'success');
+                    }
+                }
+                
+                // Test categories extraction
+                if (!requirements.categories) {
+                    const catMatch = message.match(/Categories:\s*([a-zA-Z\s,]+)/i);
+                    if (catMatch) {
+                        requirements.categories = catMatch[1].split(',').map(c => c.trim());
+                        log('  → Extracted categories: ' + requirements.categories.join(', '), 'success');
+                    }
+                }
+            });
+            
+            log('Final requirements: ' + JSON.stringify(requirements, null, 2), 'info');
+            
+            if (requirements.businessName && requirements.productType && requirements.categories) {
+                log('✅ Rule-based processing works!', 'success');
+                document.getElementById('test3-result').innerHTML = '<p style="color: green;">✅ Rule-based extraction working!</p>';
+            } else {
+                log('❌ Some requirements not extracted', 'error');
+                document.getElementById('test3-result').innerHTML = '<p style="color: red;">❌ Extraction incomplete</p>';
+            }
+        }
+        
+        // Auto-run tests on load
+        window.onload = function() {
+            log('=== Genvedha Guru Chatbot Test Suite ===', 'info');
+            log('Click the buttons above to run tests', 'info');
+        };
+    </script>
+</body>
+</html>

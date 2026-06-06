@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "test": "echo \"Tests coming soon\" && exit 0"
+    "test": "node test-generic-template.js",
+    "test:watch": "nodemon test-generic-template.js"
   },
   "keywords": [
     "ai",
@@ -20,14 +21,17 @@
   "license": "ISC",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.20.0",
-    "express": "^4.18.2",
-    "cors": "^2.8.5",
     "body-parser": "^1.20.2",
+    "cors": "^2.8.5",
     "dotenv": "^16.3.1",
+    "express": "^4.18.2",
     "fs-extra": "^11.2.0",
+    "mongoose": "^8.0.0",
+    "multer": "^1.4.5-lts.1",
     "uuid": "^9.0.0"
   },
   "devDependencies": {
+    "axios": "^1.16.0",
     "nodemon": "^3.0.2"
   }
 }

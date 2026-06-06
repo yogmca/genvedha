@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PrimeProperty4U - Project Quotation</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .email-container {
+            background-color: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 30px;
+            text-align: center;
+        }
+        .logo {
+            max-width: 200px;
+            margin-bottom: 20px;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 600;
+        }
+        .header p {
+            margin: 10px 0 0 0;
+            font-size: 16px;
+            opacity: 0.9;
+        }
+        .content {
+            padding: 40px 30px;
+        }
+        .section {
+            margin-bottom: 30px;
+        }
+        .section-title {
+            color: #667eea;
+            font-size: 22px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+        .feature-list {
+            list-style: none;
+            padding: 0;
+        }
+        .feature-list li {
+            padding: 10px 0;
+            padding-left: 30px;
+            position: relative;
+        }
+        .feature-list li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #4CAF50;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        .pricing-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            overflow-x: auto;
+            display: block;
+        }
+        .pricing-table thead,
+        .pricing-table tbody {
+            display: table;
+            width: 100%;
+        }
+        .pricing-table th {
+            background-color: #667eea;
+            color: white;
+            padding: 12px 8px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 13px;
+        }
+        .pricing-table td {
+            padding: 10px 8px;
+            border-bottom: 1px solid #e0e0e0;
+            font-size: 12px;
+        }
+        .pricing-table tr:last-child td {
+            border-bottom: none;
+        }
+        .pricing-table .total-row {
+            background-color: #667eea;
+            color: white;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        .highlight-box {
+            background-color: #f0f4ff;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        .highlight-box h3 {
+            margin-top: 0;
+            color: #667eea;
+        }
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 40px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: 600;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .footer {
+            background-color: #2c3e50;
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .footer a {
+            color: #667eea;
+            text-decoration: none;
+        }
+        .timeline {
+            display: flex;
+            justify-content: space-between;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        .timeline-item {
+            flex: 1;
+            min-width: 150px;
+            text-align: center;
+            padding: 15px;
+            background-color: #f9f9f9;
+            margin: 5px;
+            border-radius: 8px;
+        }
+        .timeline-item h4 {
+            color: #667eea;
+            margin: 0 0 10px 0;
+        }
+        @media (max-width: 600px) {
+            .content {
+                padding: 20px 10px;
+            }
+            .header {
+                padding: 30px 15px;
+            }
+            .timeline {
+                flex-direction: column;
+            }
+            .pricing-table {
+                font-size: 11px;
+                overflow-x: scroll;
+            }
+            .pricing-table th,
+            .pricing-table td {
+                padding: 8px 4px;
+                font-size: 10px;
+                white-space: nowrap;
+            }
+            .pricing-table th:last-child,
+            .pricing-table td:last-child {
+                text-align: right;
+                font-weight: bold;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <!-- Header -->
+        <div class="header">
+            <img src="https://genvedha.com/logo.png" alt="GenVedha Logo" class="logo">
+            <h1>Project Quotation</h1>
+            <p>PrimeProperty4U.com - Real Estate Platform</p>
+        </div>
+
+        <!-- Content -->
+        <div class="content">
+            <!-- Introduction -->
+            <div class="section">
+                <p>Dear Client,</p>
+                <p>Thank you for considering <strong>GenVedha Global AI & Software Solutions</strong> for your real estate platform development. We are excited to present our comprehensive quotation for <strong>PrimeProperty4U.com</strong>.</p>
+            </div>
+
+            <!-- Project Overview -->
+            <div class="section">
+                <h2 class="section-title">🏢 Project Overview</h2>
+                <p><strong>Project Name:</strong> PrimeProperty4U</p>
+                <p><strong>Domain:</strong> primeproperty4u.com</p>
+                <p><strong>Industry:</strong> Real Estate - Residential & Commercial</p>
+                <p><strong>Target Region:</strong> Mangalore & Karnataka</p>
+                <p><strong>Project Type:</strong> Real Estate Listing & Lead Generation Platform</p>
+            </div>
+
+            <!-- Key Features -->
+            <div class="section">
+                <h2 class="section-title">✨ Key Features</h2>
+                
+                <h3 style="color: #667eea; margin-top: 20px;">Property Management</h3>
+                <ul class="feature-list">
+                    <li>Multiple property types: Plots, Apartments, Houses, Villas</li>
+                    <li>Commercial properties: Office Spaces, Shops, Warehouses</li>
+                    <li>Sale and Rent listings</li>
+                    <li>Photo & video upload system (5-10 images per property)</li>
+                    <li>Comprehensive property details (location, price, area, amenities)</li>
+                    <li>Property status management</li>
+                </ul>
+
+                <h3 style="color: #667eea; margin-top: 20px;">Admin Dashboard (Realtor)</h3>
+                <ul class="feature-list">
+                    <li>Secure realtor login system</li>
+                    <li>Add/Edit/Delete property listings</li>
+                    <li>Image & video management</li>
+                    <li>Enquiry management dashboard</li>
+                    <li>Blog post creation & management</li>
+                    <li>Analytics & reporting</li>
+                </ul>
+
+                <h3 style="color: #667eea; margin-top: 20px;">Client Features</h3>
+                <ul class="feature-list">
+                    <li>Client registration & login</li>
+                    <li>Advanced search & filters (location, type, price, bedrooms)</li>
+                    <li>Property detail view with image gallery</li>
+                    <li>Contact/Enquiry forms</li>
+                    <li>Save favorite properties</li>
+                    <li>Mobile-responsive design</li>
+                </ul>
+
+                <h3 style="color: #667eea; margin-top: 20px;">Blog System</h3>
+                <ul class="feature-list">
+                    <li>Real estate tips & articles</li>
+                    <li>Rich text editor for content creation</li>
+                    <li>Image support in blog posts</li>
+                    <li>SEO-friendly URLs</li>
+                    <li>Category & tag management</li>
+                </ul>
+
+                <h3 style="color: #667eea; margin-top: 20px;">Communication & Notifications</h3>
+                <ul class="feature-list">
+                    <li><strong>WhatsApp Integration:</strong> Instant enquiry notifications</li>
+                    <li><strong>Email Notifications:</strong> Enquiry confirmations & alerts</li>
+                    <li>Automated responses</li>
+                    <li>Property sharing via WhatsApp</li>
+                </ul>
+
+                <h3 style="color: #667eea; margin-top: 20px;">Social Media Integration</h3>
+                <ul class="feature-list">
+                    <li>Share properties on Facebook, Twitter, LinkedIn, WhatsApp</li>
+                    <li>Social media meta tags for rich previews</li>
+                    <li>Share tracking & analytics</li>
+                </ul>
+
+                <h3 style="color: #667eea; margin-top: 20px;">Additional Features</h3>
+                <ul class="feature-list">
+                    <li>Google Maps integration</li>
+                    <li>Property comparison tool</li>
+                    <li>Featured/Premium listings</li>
+                    <li>SEO optimization</li>
+                    <li>Google Analytics integration</li>
+                    <li>SSL certificate (HTTPS)</li>
+                </ul>
+            </div>
+
+            <!-- Pricing -->
+            <div class="section">
+                <h2 class="section-title">💰 Investment Breakdown</h2>
+                
+                <table class="pricing-table">
+                    <thead>
+                        <tr>
+                            <th>Component</th>
+                            <th>Description</th>
+                            <th style="text-align: right;">Cost (₹)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td colspan="3" style="background-color: #e8eaf6; font-weight: bold;">DEVELOPMENT COSTS (One-Time)</td>
+                        </tr>
+                        <tr>
+                            <td>UI Development & Customization</td>
+                            <td>Frontend design, responsive UI, user experience</td>
+                            <td style="text-align: right;">15,000</td>
+                        </tr>
+                        <tr>
+                            <td>Backend App Development</td>
+                            <td>APIs, database, authentication, integrations</td>
+                            <td style="text-align: right;">20,000</td>
+                        </tr>
+                        <tr>
+                            <td>Testing & Bug Fixing</td>
+                            <td>Quality assurance, testing, deployment</td>
+                            <td style="text-align: right;">5,000</td>
+                        </tr>
+                        <tr style="background-color: #667eea; color: white; font-weight: bold;">
+                            <td colspan="2">TOTAL DEVELOPMENT</td>
+                            <td style="text-align: right;">₹40,000</td>
+                        </tr>
+                        <tr>
+                            <td colspan="3" style="background-color: #e8eaf6; font-weight: bold; padding-top: 20px;">INFRASTRUCTURE COSTS (Annual)</td>
+                        </tr>
+                        <tr>
+                            <td>AWS EC2 Hosting</td>
+                            <td>t3.small (2 vCPU, 2GB RAM)</td>
+                            <td style="text-align: right;">25,500</td>
+                        </tr>
+                        <tr>
+                            <td>MongoDB Atlas</td>
+                            <td>M5 Tier (5 GB Storage)</td>
+                            <td style="text-align: right;">12,000</td>
+                        </tr>
+                        <tr>
+                            <td>Domain & SSL</td>
+                            <td>primeproperty4u.com + SSL</td>
+                            <td style="text-align: right;">800</td>
+                        </tr>
+                        <tr>
+                            <td>WhatsApp Business API</td>
+                            <td>Basic tier</td>
+                            <td style="text-align: right;">6,000</td>
+                        </tr>
+                        <tr>
+                            <td>Backup & Storage</td>
+                            <td>AWS S3 (20GB)</td>
+                            <td style="text-align: right;">2,400</td>
+                        </tr>
+                        <tr>
+                            <td>CDN (Optional)</td>
+                            <td>CloudFront</td>
+                            <td style="text-align: right;">3,600</td>
+                        </tr>
+                        <tr style="background-color: #667eea; color: white; font-weight: bold;">
+                            <td colspan="2">TOTAL INFRASTRUCTURE (Year 1)</td>
+                            <td style="text-align: right;">₹35,500</td>
+                        </tr>
+                        <tr class="total-row">
+                            <td colspan="2">GRAND TOTAL (YEAR 1)</td>
+                            <td style="text-align: right;">₹75,500</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="highlight-box">
+                    <h3>💡 Recurring Costs</h3>
+                    <p><strong>Year 2 onwards:</strong> ₹35,500/year (Infrastructure only - Annual payment)</p>
+                </div>
+            </div>
+
+            <!-- Payment Terms -->
+            <div class="section">
+                <h2 class="section-title">💳 Payment Terms</h2>
+                <div class="highlight-box">
+                    <h3>Development Payment Schedule:</h3>
+                    <ul style="list-style: none; padding: 0;">
+                        <li style="padding: 10px 0;"><strong>40% Advance:</strong> ₹16,000 (Before project start)</li>
+                        <li style="padding: 10px 0;"><strong>30% Milestone:</strong> ₹12,000 (After admin panel & listings complete)</li>
+                        <li style="padding: 10px 0;"><strong>30% Final:</strong> ₹12,000 (Upon deployment & training)</li>
+                    </ul>
+                    <h3 style="margin-top: 20px;">Infrastructure Payment:</h3>
+                    <ul style="list-style: none; padding: 0;">
+                        <li style="padding: 10px 0;"><strong>Annual Payment:</strong> ₹35,500/year (paid upfront)</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Timeline -->
+            <div class="section">
+                <h2 class="section-title">📅 Project Timeline</h2>
+                <p><strong>Total Duration: 2-4 Weeks</strong></p>
+                <div class="timeline">
+                    <div class="timeline-item">
+                        <h4>Week 1</h4>
+                        <p>Base app, Property system, Database</p>
+                    </div>
+                    <div class="timeline-item">
+                        <h4>Week 2</h4>
+                        <p>Admin panel, Search, Blog</p>
+                    </div>
+                    <div class="timeline-item">
+                        <h4>Week 3</h4>
+                        <p>WhatsApp, Email, Social sharing, UI polish</p>
+                    </div>
+                    <div class="timeline-item">
+                        <h4>Week 4</h4>
+                        <p>Testing, Deployment, Training</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Deliverables -->
+            <div class="section">
+                <h2 class="section-title">📦 Deliverables</h2>
+                <ul class="feature-list">
+                    <li>Fully functional website (primeproperty4u.com)</li>
+                    <li>Complete source code (React + Node.js)</li>
+                    <li>Admin dashboard with login credentials</li>
+                    <li>MongoDB database setup & configuration</li>
+                    <li>AWS EC2 deployment with SSL</li>
+                    <li>WhatsApp & Email integration</li>
+                    <li>Social media sharing functionality</li>
+                    <li>Blog system with sample posts</li>
+                    <li>Technical documentation</li>
+                    <li>Admin training session (1 hour)</li>
+                    <li>User manual & guides</li>
+                    <li>2 months free support</li>
+                </ul>
+            </div>
+
+            <!-- Capacity -->
+            <div class="section">
+                <h2 class="section-title">🔧 Capacity & Scalability</h2>
+                <div class="highlight-box">
+                    <h3>Current Configuration Supports:</h3>
+                    <ul style="margin: 10px 0;">
+                        <li><strong>Users:</strong> 2,000-5,000 registered users</li>
+                        <li><strong>Properties:</strong> 5,000-10,000 property listings</li>
+                        <li><strong>Enquiries:</strong> Unlimited</li>
+                        <li><strong>Blog Posts:</strong> Unlimited</li>
+                        <li><strong>Images:</strong> 50,000+ images (via S3)</li>
+                        <li><strong>Videos:</strong> 1,000+ videos</li>
+                        <li><strong>Concurrent Users:</strong> 500-1,000 simultaneous visitors</li>
+                        <li><strong>Storage:</strong> 5 GB database + 20 GB file storage</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- CTA -->
+            <div class="section" style="text-align: center;">
+                <h2 class="section-title">🚀 Ready to Get Started?</h2>
+                <p>Let's build PrimeProperty4U.com together and transform your real estate business!</p>
+                <a href="mailto:support@genvedha.com?subject=PrimeProperty4U%20-%20Ready%20to%20Start" class="cta-button">Accept Quotation & Start Project</a>
+            </div>
+
+            <!-- Validity -->
+            <div class="section">
+                <div class="highlight-box" style="background-color: #fff3cd; border-left-color: #ffc107;">
+                    <h3 style="color: #856404;">⏰ Quotation Validity</h3>
+                    <p style="color: #856404; margin: 0;">This quotation is valid for <strong>30 days</strong> from May 13, 2026 (Valid until June 12, 2026)</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <h3 style="margin-top: 0;">GenVedha Global AI & Software Solutions</h3>
+            <p>
+                <strong>Email:</strong> <a href="mailto:support@genvedha.com">support@genvedha.com</a><br>
+                <strong>Technical Lead:</strong> <a href="mailto:yogmca@gmail.com">yogmca@gmail.com</a><br>
+                <strong>Website:</strong> <a href="https://www.genvedha.com">www.genvedha.com</a>
+            </p>
+            <p style="margin-top: 20px; font-size: 12px; opacity: 0.8;">
+                © 2026 GenVedha Global AI & Software Solutions. All rights reserved.<br>
+                This quotation is confidential and intended solely for the addressee.
+            </p>
+        </div>
+    </div>
+</body>
+</html>
