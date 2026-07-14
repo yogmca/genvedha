@@ -4,6 +4,14 @@ import { Link } from 'react-router-dom';
 const Services = () => {
   const services = [
     {
+      icon: '🚀',
+      title: 'AI-Built E-commerce - Live in Minutes',
+      description: 'From idea to live storefront in minutes, not months. Our AI crews generate fully-functional e-commerce stores with product catalogs, shopping cart, admin panel, payment gateway, and AWS hosting. Custom domain mapping included.',
+      gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      link: '/ai-ecommerce-solution',
+      featured: true
+    },
+    {
       icon: '🤖',
       title: 'AI & Machine Learning',
       description: 'Advanced AI solutions including predictive analytics, natural language processing, and computer vision to drive intelligent automation.',
@@ -18,8 +26,8 @@ const Services = () => {
     },
     {
       icon: '☁️',
-      title: 'Cloud Solutions',
-      description: 'Cloud migration, architecture design, and optimization services for AWS, Azure, and Google Cloud platforms.',
+      title: 'Cloud Solutions & Hosting',
+      description: 'Cloud migration, architecture design, and optimization services for AWS, Azure, and Google Cloud platforms. Production-ready hosting on GenVedha AWS infrastructure.',
       gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'
     },
     {
