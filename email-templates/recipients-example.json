@@ -1,0 +1,15 @@
+[
+  {
+    "email": "client1@example.com",
+    "name": "John Doe"
+  },
+  {
+    "email": "client2@example.com",
+    "name": "Jane Smith",
+    "subject": "Exclusive AI E-commerce Solution for Your Business"
+  },
+  {
+    "email": "client3@example.com",
+    "name": "Robert Johnson"
+  }
+]
