@@ -82,7 +82,7 @@ class GenvedhaGuru {
             } else {
                 startBtn.disabled = true;
                 startBtn.classList.add('disabled');
-                startBtn.setAttribute('title', 'App creation is currently unavailable. Please contact Genvedha to generate apps.');
+                startBtn.setAttribute('title', 'App creation is currently unavailable. Please contact Genvedha at https://genvedha.com/#contact to generate apps.');
                 startBtn.style.opacity = '0.5';
                 startBtn.style.cursor = 'not-allowed';
             }
@@ -118,7 +118,7 @@ class GenvedhaGuru {
         }
 
         note.innerHTML = 'ℹ️ App creation is currently unavailable here. ' +
-            'Please <a href="mailto:support@genvedha.com?subject=Request%20to%20Generate%20an%20App">contact Genvedha</a> to generate apps.';
+            'Please <a href="https://genvedha.com/#contact" target="_blank" rel="noopener">contact Genvedha</a> to generate apps.';
     }
     
     showModeIndicator() {
@@ -218,7 +218,7 @@ class GenvedhaGuru {
         if (!this.creationEnabled) {
             this.addBotMessage(
                 "ℹ️ **App creation is currently unavailable here.**\n\n" +
-                "Please **contact Genvedha** to generate apps: support@genvedha.com\n\n" +
+                "Please **contact Genvedha** to generate apps: https://genvedha.com/#contact\n\n" +
                 "In the meantime, you can click **'💡 Show Example'** or **'❓ How It Works'** to learn more."
             );
             return;
@@ -775,7 +775,7 @@ class GenvedhaGuru {
             this.addBotMessage(
                 "❌ Oops! Something went wrong while creating your app.\n\n" +
                 "Error: " + error.message + "\n\n" +
-                "Please try again or contact support."
+                "Please try again or contact support at https://genvedha.com/#contact"
             );
             this.updateRobotStatus("ERROR");
         }
