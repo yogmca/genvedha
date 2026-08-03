@@ -13,7 +13,7 @@ const Portfolio = () => {
       name: 'Genvedha Guru',
       type: 'AI E-commerce App Creator',
       url: 'https://genvedha.com/genvedha-guru.html',
-      domain: 'genvedha.com/genvedha-guru',
+      domain: 'genvedha-guru',
       description: 'AI-powered assistant that builds complete, fully-functional e-commerce applications from a simple conversation in under a minute.'
     }
   ];
