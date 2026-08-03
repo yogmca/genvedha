@@ -10,11 +10,11 @@ const Portfolio = () => {
       description: 'Full-featured e-commerce platform for authentic Coorg spices with integrated payment gateway and inventory management.'
     },
     {
-      name: 'LegalIQ',
-      type: 'Legal Tech Platform',
-      url: 'https://legaliq.in',
-      domain: 'legaliq.in',
-      description: 'AI-powered legal intelligence platform providing case law research, document analysis, and legal insights.'
+      name: 'Genvedha Guru',
+      type: 'AI E-commerce App Creator',
+      url: 'https://genvedha.com/genvedha-guru.html',
+      domain: 'genvedha.com/genvedha-guru',
+      description: 'AI-powered assistant that builds complete, fully-functional e-commerce applications from a simple conversation in under a minute.'
     }
   ];
 

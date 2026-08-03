@@ -5,6 +5,13 @@
 
 class GenvedhaGuru {
     constructor() {
+        // Load configuration from config file or use defaults
+        const config = typeof GENVEDHA_CONFIG !== 'undefined' ? GENVEDHA_CONFIG : { USE_CLAUDE_API: false };
+        
+        // Configuration: Set to false to disable Claude API and use offline mode
+        this.USE_CLAUDE_API = config.USE_CLAUDE_API || false;
+        this.config = config;
+        
         this.requirements = {
             businessName: null,
             productType: null,
@@ -15,7 +22,11 @@ class GenvedhaGuru {
         this.conversationHistory = [];
         this.conversationStarted = false;
         this.allRequirementsGathered = false;
-        
+
+        // Feature flag: whether the "Start Creating" flow is enabled.
+        // Controlled server-side via the ENABLE_GENVEDHA_CREATION env variable.
+        this.creationEnabled = false;
+
         this.init();
     }
 
@@ -34,6 +45,102 @@ class GenvedhaGuru {
         
         this.setupEventListeners();
         this.showWelcomeMessage();
+        this.showModeIndicator();
+
+        // Load the server-side feature flag and apply button state
+        this.loadFeatureFlags();
+    }
+
+    async loadFeatureFlags() {
+        // Disable the Start Creating button by default until we confirm it's enabled
+        this.setCreationEnabled(false);
+
+        try {
+            const response = await fetch('/api/genvedha/config');
+            const config = await response.json();
+            this.setCreationEnabled(!!config.creationEnabled);
+        } catch (error) {
+            console.warn('Could not load Genvedha config, keeping creation disabled:', error);
+            this.setCreationEnabled(false);
+        }
+    }
+
+    setCreationEnabled(enabled) {
+        this.creationEnabled = enabled;
+
+        const startBtn = document.querySelector('.quick-btn[data-action="start"]');
+        if (startBtn) {
+            // Keep the label as "Start Creating" in both states; only toggle the disabled state
+            startBtn.textContent = '🚀 Start Creating';
+
+            if (enabled) {
+                startBtn.disabled = false;
+                startBtn.classList.remove('disabled');
+                startBtn.removeAttribute('title');
+                startBtn.style.opacity = '';
+                startBtn.style.cursor = '';
+            } else {
+                startBtn.disabled = true;
+                startBtn.classList.add('disabled');
+                startBtn.setAttribute('title', 'App creation is currently unavailable. Please contact Genvedha to generate apps.');
+                startBtn.style.opacity = '0.5';
+                startBtn.style.cursor = 'not-allowed';
+            }
+        }
+
+        this.updateContactNote(enabled);
+    }
+
+    updateContactNote(enabled) {
+        const quickActions = document.getElementById('quickActions');
+        if (!quickActions) return;
+
+        let note = document.getElementById('creationContactNote');
+
+        if (enabled) {
+            // Remove the note when creation is enabled
+            if (note) note.remove();
+            return;
+        }
+
+        // Create the note if it doesn't exist yet
+        if (!note) {
+            note = document.createElement('p');
+            note.id = 'creationContactNote';
+            note.style.cssText = `
+                margin-top: 12px;
+                font-size: 14px;
+                text-align: center;
+                color: #666;
+                line-height: 1.5;
+            `;
+            quickActions.insertAdjacentElement('afterend', note);
+        }
+
+        note.innerHTML = 'ℹ️ App creation is currently unavailable here. ' +
+            'Please <a href="mailto:support@genvedha.com?subject=Request%20to%20Generate%20an%20App">contact Genvedha</a> to generate apps.';
+    }
+    
+    showModeIndicator() {
+        // Add mode indicator to chat header
+        const chatHeader = document.querySelector('.chat-header');
+        if (chatHeader && !document.getElementById('modeIndicator')) {
+            const modeIndicator = document.createElement('div');
+            modeIndicator.id = 'modeIndicator';
+            modeIndicator.style.cssText = `
+                display: inline-block;
+                padding: 4px 12px;
+                border-radius: 12px;
+                font-size: 12px;
+                font-weight: 500;
+                margin-top: 8px;
+                background: ${this.USE_CLAUDE_API ? '#10b981' : '#f59e0b'};
+                color: white;
+            `;
+            modeIndicator.textContent = this.USE_CLAUDE_API ?
+                '🌐 AI Mode' : '🔌 Offline Mode';
+            chatHeader.appendChild(modeIndicator);
+        }
     }
 
     setupEventListeners() {
@@ -80,11 +187,15 @@ class GenvedhaGuru {
 
     showWelcomeMessage() {
         setTimeout(() => {
-            this.addBotMessage(
+            const welcomeMsg = this.config.MESSAGES?.WELCOME ||
                 "👋 Hello! I'm Genvedha Guru, your AI assistant for creating e-commerce apps!\n\n" +
                 "I can help you build a complete, fully-functional e-commerce application in less than a minute! 🚀\n\n" +
-                "Click 'Start Creating' when you're ready, or ask me how it works!"
-            );
+                "Click 'Start Creating' when you're ready, or ask me how it works!";
+            
+            const modeNote = this.USE_CLAUDE_API ?
+                "" : "\n\n🔌 **Note:** Running in offline mode with smart pattern matching.";
+            
+            this.addBotMessage(welcomeMsg + modeNote);
         }, 500);
     }
 
@@ -103,20 +214,38 @@ class GenvedhaGuru {
     }
 
     startConversation() {
+        // Guard: do not allow starting the creation flow when disabled
+        if (!this.creationEnabled) {
+            this.addBotMessage(
+                "ℹ️ **App creation is currently unavailable here.**\n\n" +
+                "Please **contact Genvedha** to generate apps: support@genvedha.com\n\n" +
+                "In the meantime, you can click **'💡 Show Example'** or **'❓ How It Works'** to learn more."
+            );
+            return;
+        }
+
         this.quickActions.style.display = 'none';
         this.conversationStarted = true;
         
         this.updateRobotSpeech("Let's create your app! 🎨");
         this.updateRobotStatus("COLLECTING");
         
-        this.addBotMessage(
-            "Excellent! Let's get started. 🎉\n\n" +
-            "Tell me about your e-commerce business idea. You can share:\n" +
-            "• What you want to name your business\n" +
-            "• What products you'll be selling\n" +
-            "• Any other details about your vision\n\n" +
-            "Just chat naturally with me, and I'll gather all the information I need!"
-        );
+        // Show different message based on API availability
+        const startMessage = this.USE_CLAUDE_API ?
+            (this.config.MESSAGES?.START_ONLINE ||
+             "Excellent! Let's get started. 🎉\n\n" +
+             "Tell me about your e-commerce business idea. You can share:\n" +
+             "• What you want to name your business\n" +
+             "• What products you'll be selling\n" +
+             "• Any other details about your vision\n\n" +
+             "Just chat naturally with me, and I'll gather all the information I need!") :
+            (this.config.MESSAGES?.START_OFFLINE ||
+             "Great! To get started, could you tell me:\n\n" +
+             "• What would you like to name your e-commerce business?\n" +
+             "• What type of products will you be selling?\n" +
+             "• What product categories do you need?");
+        
+        this.addBotMessage(startMessage);
     }
 
     showExample() {
@@ -238,6 +367,13 @@ class GenvedhaGuru {
         // Show typing indicator
         this.updateRobotSpeech("Thinking... 🤔");
         
+        // Check if Claude API is enabled
+        if (!this.USE_CLAUDE_API) {
+            console.log('Claude API disabled, using offline mode');
+            this.processWithRules(userMessage);
+            return;
+        }
+        
         try {
             console.log('Calling API /api/genvedha/analyze-requirements');
             console.log('Conversation history length:', this.conversationHistory.length);
@@ -313,25 +449,29 @@ class GenvedhaGuru {
     }
 
     processWithRules(userMessage) {
-        console.log('Using rule-based processing (LLM not available)');
+        console.log('Using rule-based processing (offline mode)');
         console.log('Processing message:', userMessage);
         const lowerMessage = userMessage.toLowerCase();
         
         // Extract business name - improved patterns
         if (!this.requirements.businessName) {
             const namePatterns = [
-                /create\s+([A-Z][a-zA-Z0-9]+)/i,  // "create AquaGarden"
                 /(?:name|call|called)\s+(?:is|it)?\s*['""]?([A-Z][a-zA-Z0-9\s]+)['""]?/i,
-                /^([A-Z][a-zA-Z0-9]+)(?:\s+selling|\s+is|\s+will)/i,  // "AquaGarden selling..."
-                /business\s+(?:name\s+)?(?:is|will be)\s+['""]?([A-Z][a-zA-Z0-9\s]+)['""]?/i
+                /business\s+(?:name\s+)?(?:is|will be)\s+['""]?([A-Z][a-zA-Z0-9\s]+)['""]?/i,
+                /^([A-Z][a-zA-Z0-9\s]+)$/i,  // Just the name alone
+                /create\s+([A-Z][a-zA-Z0-9\s]+)/i,  // "create AquaGarden"
             ];
             
             for (const pattern of namePatterns) {
                 const match = userMessage.match(pattern);
-                if (match && match[1] && match[1].length >= 2) {
-                    this.requirements.businessName = match[1].trim();
-                    console.log('✅ Extracted business name:', this.requirements.businessName);
-                    break;
+                if (match && match[1] && match[1].trim().length >= 2) {
+                    const extracted = match[1].trim();
+                    // Avoid extracting common words
+                    if (!['selling', 'products', 'business', 'categories'].includes(extracted.toLowerCase())) {
+                        this.requirements.businessName = extracted;
+                        console.log('✅ Extracted business name:', this.requirements.businessName);
+                        break;
+                    }
                 }
             }
         }
@@ -339,18 +479,24 @@ class GenvedhaGuru {
         // Extract product type - improved patterns
         if (!this.requirements.productType) {
             const productPatterns = [
-                /selling\s+([a-zA-Z\s]+?)(?:\.|,|Categories|$)/i,  // "selling aquatic plants"
-                /sell(?:ing)?\s+([a-zA-Z\s]+?)(?:\.|,|Categories|for|$)/i,
-                /products?\s+(?:are|is|like)?\s*([a-zA-Z\s]+?)(?:\.|,|Categories|for|$)/i,
-                /(?:deal|dealing)\s+(?:in|with)\s+([a-zA-Z\s]+?)(?:\.|,|Categories|for|$)/i
+                /selling\s+([a-zA-Z\s]+?)(?:\.|,|categories|$)/i,  // "selling aquatic plants"
+                /sell(?:ing)?\s+([a-zA-Z\s]+?)(?:\.|,|categories|for|$)/i,
+                /products?\s+(?:are|is|like)?\s*[:]\s*([a-zA-Z\s]+?)(?:\.|,|categories|for|$)/i,
+                /type\s+(?:of\s+)?products?\s*[:]\s*([a-zA-Z\s]+?)(?:\.|,|categories|$)/i,
+                /(?:deal|dealing)\s+(?:in|with)\s+([a-zA-Z\s]+?)(?:\.|,|categories|for|$)/i
             ];
             
             for (const pattern of productPatterns) {
                 const match = userMessage.match(pattern);
                 if (match && match[1] && match[1].trim().length >= 3) {
-                    this.requirements.productType = match[1].trim();
-                    console.log('✅ Extracted product type:', this.requirements.productType);
-                    break;
+                    const extracted = match[1].trim();
+                    // Clean up common trailing words
+                    const cleaned = extracted.replace(/\s+(and|with|for)$/i, '').trim();
+                    if (cleaned.length >= 3) {
+                        this.requirements.productType = cleaned;
+                        console.log('✅ Extracted product type:', this.requirements.productType);
+                        break;
+                    }
                 }
             }
         }
@@ -358,16 +504,17 @@ class GenvedhaGuru {
         // Extract categories - improved patterns
         if (!this.requirements.categories) {
             const categoryPatterns = [
-                /Categories?:\s*([a-zA-Z\s,]+?)(?:\.|$)/i,  // "Categories: A, B, C"
-                /categor(?:ies|y)\s+(?:are|include)?\s*[:]\s*([a-zA-Z\s,]+)/i,
-                /(?:have|need)\s+categories?\s+(?:like|such as)\s*[:]\s*([a-zA-Z\s,]+)/i
+                /categories?\s*[:]\s*([a-zA-Z\s,]+?)(?:\.|$)/i,  // "Categories: A, B, C"
+                /categor(?:ies|y)\s+(?:are|include|like)?\s*[:]\s*([a-zA-Z\s,]+)/i,
+                /(?:have|need)\s+(?:these\s+)?categories?\s*[:]\s*([a-zA-Z\s,]+)/i,
+                /^([a-zA-Z\s,]+)$/i  // Just comma-separated list
             ];
             
             for (const pattern of categoryPatterns) {
                 const match = userMessage.match(pattern);
                 if (match && match[1]) {
-                    const cats = match[1].split(',').map(c => c.trim()).filter(c => c.length > 0);
-                    if (cats.length >= 1) {
+                    const cats = match[1].split(',').map(c => c.trim()).filter(c => c.length > 0 && c.length < 50);
+                    if (cats.length >= 2) {  // At least 2 categories
                         this.requirements.categories = cats;
                         console.log('✅ Extracted categories:', this.requirements.categories);
                         break;

@@ -324,9 +324,33 @@ app.get('/api/contacts', async (req, res) => {
   }
 });
 
+// Genvedha Guru - Feature flag helper
+// Controls whether the public "Start Creating" flow is enabled.
+function isGenvedhaCreationEnabled() {
+  return String(process.env.ENABLE_GENVEDHA_CREATION).toLowerCase() === 'true';
+}
+
+// Genvedha Guru - Public config endpoint
+// Exposes safe, client-facing feature flags to the static frontend.
+app.get('/api/genvedha/config', (req, res) => {
+  res.json({
+    success: true,
+    creationEnabled: isGenvedhaCreationEnabled()
+  });
+});
+
 // Genvedha Guru - Requirements Analysis API (LLM-based conversation)
 app.post('/api/genvedha/analyze-requirements', async (req, res) => {
   try {
+    // Guard: block the creation flow unless explicitly enabled via env flag
+    if (!isGenvedhaCreationEnabled()) {
+      return res.status(403).json({
+        success: false,
+        error: 'Feature disabled',
+        message: 'App creation is currently disabled.'
+      });
+    }
+
     const { conversationHistory, currentRequirements, userMessage } = req.body;
     
     // Use the ClaudeClient from genvedha-llm-service (it handles model configuration)
@@ -537,6 +561,15 @@ Be friendly and brief. Ask only ONE question. ONLY discuss e-commerce. If user a
 // Genvedha Guru - App Generation API
 app.post('/api/genvedha/generate', async (req, res) => {
   try {
+    // Guard: block the creation flow unless explicitly enabled via env flag
+    if (!isGenvedhaCreationEnabled()) {
+      return res.status(403).json({
+        success: false,
+        error: 'Feature disabled',
+        message: 'App creation is currently disabled.'
+      });
+    }
+
     const { businessName, productType, description, categories, mongoUri, databaseName } = req.body;
     
     // Validate required fields
