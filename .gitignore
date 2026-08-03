@@ -105,3 +105,5 @@ dist
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+# Kimi project memory
+.kimi-memory/

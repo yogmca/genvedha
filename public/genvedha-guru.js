@@ -192,10 +192,7 @@ class GenvedhaGuru {
                 "I can help you build a complete, fully-functional e-commerce application in less than a minute! 🚀\n\n" +
                 "Click 'Start Creating' when you're ready, or ask me how it works!";
             
-            const modeNote = this.USE_CLAUDE_API ?
-                "" : "\n\n🔌 **Note:** Running in offline mode with smart pattern matching.";
-            
-            this.addBotMessage(welcomeMsg + modeNote);
+            this.addBotMessage(welcomeMsg);
         }, 500);
     }
 

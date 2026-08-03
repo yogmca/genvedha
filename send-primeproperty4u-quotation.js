@@ -38,14 +38,25 @@ async function sendQuotation() {
             'utf8'
         );
 
+        // Recipient can be overridden via CLI arg: node send-...js recipient@example.com
+        const fromAddress = process.env.EMAIL_USER || 'support@genvedha.com';
+        const recipient = process.argv[2] || 'yogmca@gmail.com';
+
         // Email options
         const mailOptions = {
             from: {
                 name: 'GenVedha Global AI and Software Solutions',
-                address: process.env.EMAIL_USER || 'support@genvedha.com'
+                address: fromAddress
             },
-            to: 'yogmca@gmail.com',
+            // Explicit SMTP envelope so Return-Path/MAIL FROM align with the
+            // authenticated sender (critical for SPF/DMARC pass -> inbox).
+            envelope: {
+                from: fromAddress,
+                to: recipient
+            },
+            to: recipient,
             cc: 'support@genvedha.com',
+            replyTo: fromAddress,
             subject: 'PrimeProperty4U.com - Project Quotation (₹75,500)',
             html: htmlContent,
             attachments: [
@@ -73,7 +84,7 @@ async function sendQuotation() {
         console.log(`Message ID: ${info.messageId}`);
         console.log(`Response: ${info.response}`);
         console.log('\n📋 Email Details:');
-        console.log(`- Recipient: yogmca@gmail.com`);
+        console.log(`- Recipient: ${recipient}`);
         console.log(`- CC: support@genvedha.com`);
         console.log(`- Subject: PrimeProperty4U.com - Project Quotation (₹75,500)`);
         console.log(`- Attachment: PrimeProperty4U-Quotation.md`);

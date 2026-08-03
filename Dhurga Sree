@@ -1,0 +1,22 @@
+📧 Preparing to send email...
+   To: dhurgasree@indyalley.com
+   Name: Valued Partner
+🔌 Verifying SMTP connection...
+✅ SMTP connection verified
+📄 Loading email template...
+🔎 Open-tracking enabled. Tracking ID: 90c7907a23502e54
+📤 Sending email...
+✅ Email sent successfully!
+   Message ID: <9120c746-f5a0-5a56-b719-dce969a7dfc2@genvedha.com>
+   Response: 250 ljEcwozInlbxc mail accepted for delivery
+
+📊 HOW TO VERIFY IF THIS EMAIL WAS OPENED:
+   • Tracking ID: 90c7907a23502e54
+   • When dhurgasree@indyalley.com opens the email, their mail client
+     loads the pixel and this URL appears in your web server logs:
+     https://genvedha.com/logo.png?t=90c7907a23502e54&e=dhurgasree%40indyalley.com
+   • On your EC2 server, check opens with:
+     sudo grep "90c7907a23502e54" /var/log/nginx/access.log
+   • A local record was saved to: email-send-log.json
+
+✅ Email sent successfully!
