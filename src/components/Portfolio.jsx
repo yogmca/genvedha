@@ -12,7 +12,7 @@ const Portfolio = () => {
     {
       name: 'Genvedha Guru',
       type: 'AI E-commerce App Creator',
-      url: 'https://genvedha.com/genvedha-guru.html',
+      url: '/genvedha-guru',
       domain: 'genvedha-guru',
       description: 'AI-powered assistant that builds complete, fully-functional e-commerce applications from a simple conversation in under a minute.'
     }
@@ -32,7 +32,14 @@ const Portfolio = () => {
                 <div className="portfolio-overlay">
                   <h3>{project.name}</h3>
                   <p>{project.type}</p>
-                  <a href={project.url} target="_blank" rel="noopener noreferrer" className="portfolio-link">Visit Site →</a>
+                  <a
+                    href={project.url}
+                    target={project.url.startsWith('http') ? '_blank' : undefined}
+                    rel={project.url.startsWith('http') ? 'noopener noreferrer' : undefined}
+                    className="portfolio-link"
+                  >
+                    Visit Site →
+                  </a>
                 </div>
               </div>
               <div className="portfolio-info">

@@ -68,6 +68,13 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
+// Redirect the legacy static Genvedha Guru page to the new React route.
+// This MUST come before express.static so the old public/genvedha-guru.html
+// file does not get served (handles bookmarks, old links, cached search results).
+app.get('/genvedha-guru.html', (req, res) => {
+  res.redirect(301, '/genvedha-guru');
+});
+
 // Serve static files from the React app build directory
 app.use(express.static(path.join(__dirname, 'dist')));
 // Serve public directory for static assets (logo, verification files, etc.)

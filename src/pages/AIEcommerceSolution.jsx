@@ -260,7 +260,7 @@ const AIEcommerceSolution = () => {
             <p>Let's discuss how we can generate a fully-functional, production-ready e-commerce store tailored to your business.</p>
             <div className="cta-buttons">
               <a href="/#contact" className="btn btn-primary">Get Started Today</a>
-              <a href="/genvedha-guru.html" className="btn btn-secondary">Try GenVedha Guru</a>
+              <a href="/genvedha-guru" className="btn btn-secondary">Try GenVedha Guru</a>
             </div>
           </div>
         </div>
