@@ -2,14 +2,18 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import '../styles/genvedha-guru.css';
 
 // Configuration (ported from public/genvedha-guru-config.js)
+// Reads from environment variables set via webpack DefinePlugin (.env file)
 const CONFIG = {
-  USE_CLAUDE_API: false,
+  USE_CLAUDE_API: process.env.REACT_APP_USE_CLAUDE_API === 'true',
+  LLM_MODEL: process.env.REACT_APP_LLM_MODEL || 'claude',
   DEFAULT_PORT: 5000,
   MIN_CATEGORIES: 2,
   API_ENDPOINTS: {
     ANALYZE: '/api/genvedha/analyze-requirements',
     GENERATE: '/api/genvedha/generate'
   },
+  CLAUDE_API_AVAILABLE: process.env.REACT_APP_CLAUDE_API_AVAILABLE === 'true',
+  NVIDIA_API_AVAILABLE: process.env.REACT_APP_NVIDIA_API_AVAILABLE === 'true',
   MESSAGES: {
     WELCOME:
       "👋 Hello! I'm Genvedha Guru, your AI assistant for creating e-commerce apps!\n\n" +

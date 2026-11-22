@@ -1,5 +1,10 @@
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
+const webpack = require('webpack');
+const dotenv = require('dotenv');
+
+// Load environment variables from .env file
+dotenv.config();
 
 module.exports = {
   entry: './src/index.js',
@@ -38,6 +43,12 @@ module.exports = {
     extensions: ['.js', '.jsx']
   },
   plugins: [
+    new webpack.DefinePlugin({
+      'process.env.REACT_APP_USE_CLAUDE_API': JSON.stringify(process.env.REACT_APP_USE_CLAUDE_API || 'false'),
+      'process.env.REACT_APP_LLM_MODEL': JSON.stringify(process.env.REACT_APP_LLM_MODEL || 'claude'),
+      'process.env.REACT_APP_CLAUDE_API_AVAILABLE': JSON.stringify(process.env.REACT_APP_CLAUDE_API_AVAILABLE === 'true'),
+      'process.env.REACT_APP_NVIDIA_API_AVAILABLE': JSON.stringify(process.env.REACT_APP_NVIDIA_API_AVAILABLE === 'true'),
+    }),
     new HtmlWebpackPlugin({
       template: './public/index-template.html',
       filename: 'index.html',

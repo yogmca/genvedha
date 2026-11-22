@@ -14,6 +14,14 @@ const config = {
     temperature: parseFloat(process.env.CLAUDE_TEMPERATURE) || 0.7
   },
 
+  // NVIDIA API Configuration
+  nvidia: {
+    apiKey: process.env.NVIDIA_API_KEY,
+    model: process.env.NVIDIA_MODEL || 'nvidia/llama-3.1-8b-instruction',
+    maxTokens: parseInt(process.env.NVIDIA_MAX_TOKENS) || 4096,
+    temperature: parseFloat(process.env.NVIDIA_TEMPERATURE) || 0.7
+  },
+
   // Template Repository Configuration
   template: {
     repoUrl: process.env.TEMPLATE_REPO_URL || 'https://github.com/yogmca/coorgmasala.git',
@@ -57,8 +65,12 @@ const config = {
 function validateConfig() {
   const errors = [];
 
-  if (!config.claude.apiKey) {
-    errors.push('CLAUDE_API_KEY is required in environment variables');
+  // Check that at least one LLM is configured
+  const hasClaude = config.claude && config.claude.apiKey;
+  const hasNVIDIA = config.nvidia && config.nvidia.apiKey;
+
+  if (!hasClaude && !hasNVIDIA) {
+    errors.push('Either CLAUDE_API_KEY or NVIDIA_API_KEY must be configured');
   }
 
   if (!config.template.repoUrl) {

@@ -7,6 +7,7 @@ const fs = require('fs-extra');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const ClaudeClient = require('./claude-client');
+const NVIDIAClient = require('./nvidia-client');
 const TemplateManager = require('./template-manager');
 const EnvGenerator = require('./env-generator');
 const CodeCustomizer = require('./code-customizer');
@@ -15,13 +16,34 @@ const { config } = require('../config');
 
 class AppGenerator {
   constructor() {
-    this.claudeClient = new ClaudeClient();
     this.templateManager = new TemplateManager();
     this.envGenerator = new EnvGenerator();
     this.codeCustomizer = new CodeCustomizer();
     this.uiCustomizer = new UICustomizer();
     this.generatedAppsPath = config.generatedApps.basePath;
     this.activeGenerations = new Map();
+    
+    // Initialize the appropriate LLM client based on configuration
+    this._initializeLLMClient();
+  }
+  
+  _initializeLLMClient() {
+    // Check that at least one LLM is configured
+    const hasClaude = config.claude && config.claude.apiKey;
+    const hasNVIDIA = config.nvidia && config.nvidia.apiKey;
+    
+    // NVIDIA takes priority when both are configured
+    if (hasNVIDIA) {
+      console.log('🔧 Using NVIDIA LLM model for app generation');
+      this.llmClient = new NVIDIAClient();
+      this.llmType = 'nvidia';
+    } else if (hasClaude) {
+      console.log('🔧 Using Claude LLM model for app generation');
+      this.llmClient = new ClaudeClient();
+      this.llmType = 'claude';
+    } else {
+      throw new Error('No LLM client initialized - neither Claude nor NVIDIA API key is configured');
+    }
   }
 
   /**
@@ -80,9 +102,9 @@ class AppGenerator {
 
       this._updateGenerationStatus(generationId, 'analyzing', 10);
 
-      // Step 2: Generate customizations using Claude AI
-      console.log('🤖 Step 2: Generating customizations with Claude AI...');
-      const customizationResult = await this.claudeClient.generateCustomizations({
+      // Step 2: Generate customizations using the configured LLM
+      console.log('🤖 Step 2: Generating customizations with ' + this.llmType.toUpperCase() + ' AI...');
+      const customizationResult = await this.llmClient.generateCustomizations({
         userRequirements: params.userRequirements,
         templateInfo: {
           ...templateInfo,

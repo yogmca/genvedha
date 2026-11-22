@@ -107,3 +107,4 @@ ehthumbs.db
 Desktop.ini
 # Kimi project memory
 .kimi-memory/
+.aider*
