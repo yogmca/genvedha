@@ -75,8 +75,12 @@ app.get('/genvedha-guru.html', (req, res) => {
   res.redirect(301, '/genvedha-guru');
 });
 
-// Serve static files from the React app build directory
-app.use(express.static(path.join(__dirname, 'dist')));
+// Serve static files from the React app build directory (no-cache to ensure latest bundle)
+app.use(express.static(path.join(__dirname, 'dist'), {
+  maxAge: 0,
+  etag: false,
+  lastModified: false
+}));
 // Serve public directory for static assets (logo, verification files, etc.)
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -359,15 +363,19 @@ app.post('/api/genvedha/analyze-requirements', async (req, res) => {
     }
 
     const { conversationHistory, currentRequirements, userMessage } = req.body;
+    const currentReqStr = JSON.stringify(currentRequirements || {});
+    const recentHistory = conversationHistory
+      ? conversationHistory.slice(-4).map(m => m.role + ': ' + m.content).join(' | ')
+      : '';
     
-    // Use the ClaudeClient from genvedha-llm-service (it handles model configuration)
-    const ClaudeClient = require('./genvedha-llm-service/services/claude-client');
+    // Use the NVIDIAClient from genvedha-llm-service for conversational LLM responses
+    const NVIDIAClient = require('./genvedha-llm-service/services/nvidia-client');
     
-    let claudeClient;
+    let nvidiaClient;
     try {
-      claudeClient = new ClaudeClient();
+      nvidiaClient = new NVIDIAClient();
     } catch (error) {
-      // Claude not configured, use fallback
+      // NVIDIA not configured, use fallback
       return res.status(200).json({
         success: false,
         error: 'LLM not configured',
@@ -375,178 +383,130 @@ app.post('/api/genvedha/analyze-requirements', async (req, res) => {
       });
     }
 
-    // STEP 1: Extract requirements from user message using regex (reliable)
-    const extractedInfo = {};
-    const trimmedMessage = userMessage.trim();
+    // STEP 1: Use NVIDIA to dynamically extract requirements AND generate conversational response
+    // Shorter prompt to avoid truncation
+    const extractionPrompt = `You are Genvedha Guru. Extract e-commerce requirements from the user's message.
+
+CURRENT REQUIREMENTS: ${currentReqStr}
+RECENT CHAT: ${recentHistory || '(none)'}
+USER: "${userMessage}"
+
+Extract: businessName, productType, categories (array), description.
+Only extract fields clearly mentioned. Respond naturally.
+
+RETURN ONLY valid JSON:
+{"extractedInfo":{"businessName":null,"productType":null,"categories":null,"description":null},"allRequirementsGathered":false,"response":"your reply"}`;
     
-    // Extract business name
-    if (!currentRequirements.businessName) {
-      const namePatterns = [
-        /create\s+([A-Z][a-zA-Z0-9]+)/i,
-        /(?:name|call|called)\s+(?:is|it)?\s*['""]?([A-Z][a-zA-Z0-9\s]+?)['""]?(?:\s+selling|\s+for|\.|,|$)/i,
-        /(?:store|shop|business)\s+(?:called|named)\s+['""]?([A-Z][a-zA-Z0-9\s]+?)['""]?/i
-      ];
-      for (const p of namePatterns) {
-        const m = userMessage.match(p);
-        if (m && m[1] && m[1].trim().length >= 2) {
-          extractedInfo.businessName = m[1].trim();
+    // STEP 1: Use NVIDIA to dynamically extract requirements AND generate conversational response
+    // No rigid regex — NVIDIA understands free-form input naturally
+    // Retry up to 3 times if NVIDIA returns empty/truncated responses (rate limiting)
+    let extractionResponse;
+    let lastError = null;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        extractionResponse = await nvidiaClient.chat({
+          prompt: extractionPrompt,
+          systemMessage: 'You are Genvedha Guru, an expert e-commerce app creator. Extract requirements dynamically from user conversation and respond naturally. Return ONLY valid JSON.',
+          maxTokens: 400,
+          temperature: 0.5
+        });
+
+        if (extractionResponse.response && extractionResponse.response.trim().length > 10) {
           break;
         }
-      }
-      // If user just types a name as answer (1-3 words, no common words)
-      if (!extractedInfo.businessName) {
-        const wordCount = trimmedMessage.split(/\s+/).length;
-        const isCommonWord = /^(yes|no|ok|sure|hi|hello|hey|thanks|thank|please|help|how|what|why|when|where|i\s|my\s)/i.test(trimmedMessage);
-        if (wordCount <= 3 && !isCommonWord && trimmedMessage.length >= 2 && trimmedMessage.length <= 30) {
-          extractedInfo.businessName = trimmedMessage;
-          console.log('📌 Detected business name from short answer:', extractedInfo.businessName);
-        }
+        console.warn('⚠️  NVIDIA attempt ' + attempt + ' returned empty/short response, retrying...');
+        lastError = new Error('Empty response from NVIDIA');
+        await new Promise(r => setTimeout(r, attempt * 1000));
+      } catch (err) {
+        lastError = err;
+        console.warn('⚠️  NVIDIA attempt ' + attempt + ' failed:', err.message);
+        await new Promise(r => setTimeout(r, attempt * 1000));
       }
     }
-    
-    // Extract product type
-    if (!currentRequirements.productType) {
-      const productPatterns = [
-        /selling\s+([a-zA-Z\s]+?)(?:\.|,|Categories|Description|$)/i,
-        /sell\s+([a-zA-Z\s]+?)(?:\.|,|Categories|Description|$)/i,
-        /(?:i\s+)?(?:want to |will )?sell\s+([a-zA-Z\s]+)/i
+
+    if (!extractionResponse || !extractionResponse.response || extractionResponse.response.trim().length <= 10) {
+      console.error('❌ All NVIDIA attempts failed. Using fallback.');
+      const fallbackResponses = [
+        "I'm here to help you create your e-commerce app! Could you tell me your business name, what products you'll sell, and what categories you need?",
+        "I'd love to help you build your online store! What's your business name and what type of products will you sell?",
+        "Let's get started on your e-commerce app! Tell me your business name, product type, and categories."
       ];
-      for (const p of productPatterns) {
-        const m = userMessage.match(p);
-        if (m && m[1] && m[1].trim().length >= 3) {
-          extractedInfo.productType = m[1].trim();
-          break;
-        }
-      }
-      // If user just types the product type as answer (when we already have businessName)
-      if (!extractedInfo.productType && currentRequirements.businessName && !currentRequirements.productType) {
-        const isCommonWord = /^(yes|no|ok|sure|hi|hello|hey|thanks)/i.test(trimmedMessage);
-        if (!isCommonWord && trimmedMessage.length >= 3 && trimmedMessage.length <= 50 && !trimmedMessage.includes(',')) {
-          extractedInfo.productType = trimmedMessage;
-          console.log('📌 Detected product type from answer:', extractedInfo.productType);
-        }
-      }
+      const fallbackResponse = fallbackResponses[Math.floor(Math.random() * fallbackResponses.length)];
+
+      res.status(200).json({
+        success: true,
+        response: fallbackResponse,
+        extractedInfo: {},
+        allRequirementsGathered: false
+      });
+      return;
     }
-    
-    // Extract categories - flexible patterns
-    if (!currentRequirements.categories) {
-      const catPatterns = [
-        /Categories?:\s*([a-zA-Z\s,]+?)(?:\.|Description|$)/i,
-        /categories?\s+(?:are|like|include|would be)\s*:?\s*([a-zA-Z\s,]+?)(?:\.|$)/i
-      ];
-      for (const p of catPatterns) {
-        const m = userMessage.match(p);
-        if (m && m[1]) {
-          const cats = m[1].split(',').map(c => c.trim()).filter(c => c.length > 0);
-          if (cats.length >= 1) {
-            extractedInfo.categories = cats;
-            break;
+
+    const rawText = extractionResponse.response || '';
+
+    // STEP 3: Parse JSON with multiple strategies for truncated responses
+    let parsed = null;
+
+    // Strategy 1: Try to parse the full response as JSON
+    try {
+      parsed = JSON.parse(rawText);
+    } catch (e1) {
+      // Strategy 2: Extract the largest JSON object from the response
+      try {
+        const jsonMatch = rawText.match(/\{[\s\S]*}/);
+        if (jsonMatch) {
+          parsed = JSON.parse(jsonMatch[0]);
+        }
+      } catch (e2) {
+        // Strategy 3: Extract just the extractedInfo object from truncated JSON
+        try {
+          const infoMatch = rawText.match(/"extractedInfo"\s*:\s*\{[^}]*}/);
+          if (infoMatch) {
+            parsed = { extractedInfo: JSON.parse('{' + infoMatch[0] + '}'), allRequirementsGathered: false, response: rawText.substring(0, 200) };
+          }
+        } catch (e3) {
+          // Strategy 4: Extract individual fields with regex
+          try {
+            const extractedInfo = {};
+            const bnMatch = rawText.match(/"businessName"\s*:\s*"([^"]+)"/i);
+            if (bnMatch) extractedInfo.businessName = bnMatch[1];
+            const ptMatch = rawText.match(/"productType"\s*:\s*"([^"]+)"/i);
+            if (ptMatch) extractedInfo.productType = ptMatch[1];
+            const catMatch = rawText.match(/"categories"\s*:\s*\[([^\]]*)\]/i);
+            if (catMatch) {
+              extractedInfo.categories = catMatch[1].split(',').map(s => s.trim().replace(/"/g, ''));
+            }
+            if (Object.keys(extractedInfo).length > 0) {
+              parsed = { extractedInfo: extractedInfo, allRequirementsGathered: false, response: rawText.substring(0, 200) };
+            }
+          } catch (e4) {
+            parsed = null;
           }
         }
       }
-      // If user types comma-separated items (when we already have businessName and productType)
-      if (!extractedInfo.categories && currentRequirements.businessName && currentRequirements.productType) {
-        if (trimmedMessage.includes(',')) {
-          const commaItems = trimmedMessage.split(',').map(c => c.trim()).filter(c => c.length > 0);
-          if (commaItems.length >= 2) {
-            extractedInfo.categories = commaItems;
-            console.log('📌 Detected categories from comma-separated answer:', extractedInfo.categories);
-          }
-        }
-      }
     }
-    
-    // Extract description
-    if (!currentRequirements.description) {
-      const descMatch = userMessage.match(/Description:\s*(.+?)(?:\.|Categories|$)/i);
-      if (descMatch && descMatch[1]) {
-        extractedInfo.description = descMatch[1].trim();
-      }
+
+    if (!parsed) {
+      console.error('❌ Failed to parse NVIDIA response:', rawText.substring(0, 200));
+      parsed = {
+        extractedInfo: {},
+        allRequirementsGathered: false,
+        response: extractionResponse.response || 'I\'m having trouble understanding. Could you tell me about your e-commerce business?'
+      };
     }
-    
-    console.log('📋 Regex extracted info:', extractedInfo);
-    
-    // Merge with current requirements
-    const updatedRequirements = { ...currentRequirements };
-    for (const [key, value] of Object.entries(extractedInfo)) {
-      if (value !== null && value !== undefined && value !== '') {
-        updatedRequirements[key] = value;
-      }
-    }
-    
-    // Check if all requirements are gathered (description is optional)
-    const allGathered = !!(
-      updatedRequirements.businessName &&
-      updatedRequirements.productType &&
-      updatedRequirements.categories &&
-      updatedRequirements.categories.length >= 1
-    );
-    
-    // Auto-generate description if we have everything else
-    if (allGathered && !updatedRequirements.description) {
-      updatedRequirements.description = `${updatedRequirements.businessName} - ${updatedRequirements.productType} e-commerce platform`;
-      extractedInfo.description = updatedRequirements.description;
-    }
-    
+
+    const extractedInfo = parsed.extractedInfo || {};
+    const allGathered = parsed.allRequirementsGathered === true || (!!extractedInfo.businessName && !!extractedInfo.productType && !!extractedInfo.categories && extractedInfo.categories.length >= 1);
+    const aiResponse = parsed.response || 'Tell me more about your e-commerce business idea!';
+
+    const updatedRequirements = { ...currentRequirements, ...extractedInfo };
+
+    console.log('📋 NVIDIA extracted info:', extractedInfo);
     console.log('📋 Updated requirements:', updatedRequirements);
     console.log('✅ All gathered:', allGathered);
 
-    // STEP 2: Use LLM for conversational response
-    const missingFields = [];
-    if (!updatedRequirements.businessName) missingFields.push('business name');
-    if (!updatedRequirements.productType) missingFields.push('product type');
-    if (!updatedRequirements.categories) missingFields.push('product categories');
-    
-    let conversationPrompt;
-    
-    if (allGathered) {
-      conversationPrompt = `You are Genvedha Guru, an e-commerce app creator. The user has provided ALL requirements:
-
-Business Name: ${updatedRequirements.businessName}
-Product Type: ${updatedRequirements.productType}
-Description: ${updatedRequirements.description}
-Categories: ${updatedRequirements.categories.join(', ')}
-
-Show a neat summary of the collected requirements. Tell the user you're now ready to generate their "${updatedRequirements.businessName}" e-commerce app. Be enthusiastic but brief. ONLY discuss e-commerce.`;
-    } else if (missingFields.length === 3) {
-      // First interaction - ask for business name
-      conversationPrompt = `You are Genvedha Guru, an e-commerce app creator. The user said: "${userMessage}"
-
-This is the start of the conversation. Welcome the user warmly and ask them: "What would you like to name your e-commerce business?"
-
-Be friendly and brief. ONLY discuss e-commerce. If user asks off-topic, redirect them politely.`;
-    } else {
-      // Some info collected, ask for the next missing field
-      const nextQuestion = !updatedRequirements.businessName
-        ? 'What would you like to name your e-commerce business?'
-        : !updatedRequirements.productType
-        ? `What type of products will ${updatedRequirements.businessName} be selling?`
-        : !updatedRequirements.categories
-        ? `What product categories would you like for ${updatedRequirements.businessName}? (Please list them separated by commas, e.g., "Category1, Category2, Category3")`
-        : 'Tell me more about your business.';
-      
-      conversationPrompt = `You are Genvedha Guru, an e-commerce app creator. The user said: "${userMessage}"
-
-Already collected: ${JSON.stringify(updatedRequirements)}
-
-Acknowledge what the user just provided, then ask this EXACT next question: "${nextQuestion}"
-
-Be friendly and brief. Ask only ONE question. ONLY discuss e-commerce. If user asks off-topic, redirect them.`;
-    }
-
-    const messages = [{
-      role: 'user',
-      content: conversationPrompt
-    }];
-
-    const response = await claudeClient.client.messages.create({
-      model: claudeClient.model,
-      max_tokens: 500,
-      messages: messages
-    });
-
-    const aiResponse = response.content[0].text;
-    console.log('🤖 LLM response:', aiResponse.substring(0, 200));
+    // Use the conversational response already generated by NVIDIA in step 1
+    console.log('🤖 NVIDIA response:', aiResponse.substring(0, 200));
 
     res.status(200).json({
       success: true,
@@ -554,7 +514,6 @@ Be friendly and brief. Ask only ONE question. ONLY discuss e-commerce. If user a
       extractedInfo: extractedInfo,
       allRequirementsGathered: allGathered
     });
-
   } catch (error) {
     console.error('❌ Requirements analysis failed:', error);
     res.status(200).json({
@@ -674,6 +633,9 @@ app.get('/api/health', (req, res) => {
 
 // Serve React app for all other routes (must be last)
 app.get('*', (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 

@@ -67,6 +67,13 @@ const formatMessage = (text) => {
 
 const GenvedhaGuru = () => {
   const USE_CLAUDE_API = CONFIG.USE_CLAUDE_API;
+  const NVIDIA_API_AVAILABLE = CONFIG.NVIDIA_API_AVAILABLE;
+
+  console.log('🔧 [GenvedhaGuru] Component mounted');
+  console.log('🔧 [GenvedhaGuru] CONFIG:', JSON.stringify(CONFIG, null, 2));
+  console.log('🔧 [GenvedhaGuru] USE_CLAUDE_API:', USE_CLAUDE_API);
+  console.log('🔧 [GenvedhaGuru] NVIDIA_API_AVAILABLE:', NVIDIA_API_AVAILABLE);
+  console.log('🔧 [GenvedhaGuru] AI Mode should be:', USE_CLAUDE_API || NVIDIA_API_AVAILABLE);
 
   // Chat + conversation state
   const [messages, setMessages] = useState([]); // {sender:'bot'|'user', text, time}
@@ -140,6 +147,8 @@ const GenvedhaGuru = () => {
         const response = await fetch('/api/genvedha/config');
         const config = await response.json();
         setCreationEnabled(!!config.creationEnabled);
+        console.log('🔧 [GenvedhaGuru] Config loaded from server:', config);
+        console.log('🔧 [GenvedhaGuru] creationEnabled set to:', !!config.creationEnabled);
       } catch (error) {
         console.warn('Could not load Genvedha config, keeping creation disabled:', error);
         setCreationEnabled(false);
@@ -149,6 +158,8 @@ const GenvedhaGuru = () => {
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  console.log('🔧 [GenvedhaGuru] Render - creationEnabled:', creationEnabled, 'AI Mode badge:', USE_CLAUDE_API || NVIDIA_API_AVAILABLE);
 
   // ---- Rule-based (offline) processing ----
   const generateRuleBasedResponse = useCallback(() => {
@@ -297,48 +308,62 @@ const GenvedhaGuru = () => {
     async (userMessage) => {
       setRobotSpeech('Thinking... 🤔');
 
-      if (!USE_CLAUDE_API) {
+      // Always try server API first (NVIDIA), fall back to rules on failure
+      // Retry up to 3 times if NVIDIA returns empty/truncated responses
+      let fetchResult;
+      let lastError = null;
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          const response = await fetch(CONFIG.API_ENDPOINTS.ANALYZE, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              conversationHistory: conversationHistoryRef.current,
+              currentRequirements: requirementsRef.current,
+              userMessage
+            })
+          });
+          fetchResult = await response.json();
+
+          if (fetchResult.success && fetchResult.response && fetchResult.response.trim().length > 10) {
+            break; // Got a valid response
+          }
+          console.warn(`⚠️  NVIDIA attempt ${attempt} returned empty/short response, retrying...`);
+          lastError = new Error('Empty response from NVIDIA');
+          await new Promise(r => setTimeout(r, attempt * 500));
+        } catch (err) {
+          lastError = err;
+          console.warn(`⚠️  NVIDIA attempt ${attempt} failed:`, err.message);
+          await new Promise(r => setTimeout(r, attempt * 500));
+        }
+      }
+
+      if (!fetchResult || !fetchResult.success || !fetchResult.response) {
+        // All retries failed — fall back to rules
+        console.error('❌ All NVIDIA attempts failed. Using rule-based fallback.');
         processWithRules(userMessage);
         return;
       }
 
-      try {
-        const response = await fetch(CONFIG.API_ENDPOINTS.ANALYZE, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            conversationHistory: conversationHistoryRef.current,
-            currentRequirements: requirementsRef.current,
-            userMessage
-          })
-        });
-        const result = await response.json();
+      const result = fetchResult;
 
-        if (result.success) {
-          if (result.extractedInfo) {
-            for (const [key, value] of Object.entries(result.extractedInfo)) {
-              if (value !== null && value !== undefined && value !== '') {
-                requirementsRef.current[key] = value;
-              }
-            }
+      if (result.extractedInfo) {
+        for (const [key, value] of Object.entries(result.extractedInfo)) {
+          if (value !== null && value !== undefined && value !== '') {
+            requirementsRef.current[key] = value;
           }
-          addBotMessage(result.response);
-          conversationHistoryRef.current.push({ role: 'assistant', content: result.response });
-
-          if (result.allRequirementsGathered) {
-            allRequirementsGatheredRef.current = true;
-            setTimeout(() => showRequirementsPreview(), 1000);
-          }
-          setRobotSpeech(result.response.substring(0, 100) + '...');
-        } else {
-          throw new Error(result.error || 'Failed to process message');
         }
-      } catch (error) {
-        console.error('Error processing with AI, falling back to rules:', error);
-        processWithRules(userMessage);
       }
+      addBotMessage(result.response);
+      conversationHistoryRef.current.push({ role: 'assistant', content: result.response });
+
+      if (result.allRequirementsGathered) {
+        allRequirementsGatheredRef.current = true;
+        setTimeout(() => showRequirementsPreview(), 1000);
+      }
+      setRobotSpeech(result.response.substring(0, 100) + '...');
     },
-    [USE_CLAUDE_API, processWithRules, addBotMessage, showRequirementsPreview]
+    [processWithRules, addBotMessage, showRequirementsPreview]
   );
 
   const handleSendMessage = useCallback(async () => {
@@ -392,7 +417,7 @@ const GenvedhaGuru = () => {
     setRobotSpeech("Let's create your app! 🎨");
     setRobotStatus('COLLECTING');
 
-    const startMessage = USE_CLAUDE_API ? CONFIG.MESSAGES.START_ONLINE : CONFIG.MESSAGES.START_OFFLINE;
+    const startMessage = creationEnabled ? CONFIG.MESSAGES.START_ONLINE : CONFIG.MESSAGES.START_OFFLINE;
     addBotMessage(startMessage);
   }, [creationEnabled, USE_CLAUDE_API, addBotMessage]);
 
@@ -681,9 +706,9 @@ const GenvedhaGuru = () => {
               <p>Answer a few questions and watch your app come to life!</p>
               <div
                 className="mode-indicator"
-                style={{ background: USE_CLAUDE_API ? '#10b981' : '#f59e0b' }}
+                style={{ background: (USE_CLAUDE_API || CONFIG.NVIDIA_API_AVAILABLE) ? '#10b981' : '#f59e0b' }}
               >
-                {USE_CLAUDE_API ? '🌐 AI Mode' : '🔌 Offline Mode'}
+                {creationEnabled ? '🌐 AI Mode' : '🔌 Offline Mode'}
               </div>
             </div>
 
@@ -723,6 +748,8 @@ const GenvedhaGuru = () => {
 
             <div className="chat-input-container">
               <input
+                id="guru-chat-input"
+                name="guru-chat-input"
                 type="text"
                 className="chat-input"
                 placeholder="Type your answer here..."

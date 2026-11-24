@@ -96,6 +96,49 @@ class NVIDIAClient {
       return { status: 'unhealthy', error: error.message };
     }
   }
+
+  /**
+   * Conversational chat - returns plain text response for Genvedha Guru chatbot
+   */
+  async chat(params) {
+    const { prompt, systemMessage, maxTokens = 500, temperature = 0.7 } = params;
+    try {
+      console.log('🤖 Sending conversational request to NVIDIA API...');
+      const startTime = Date.now();
+
+      const messages = [];
+      if (systemMessage) {
+        messages.push({ role: 'system', content: systemMessage });
+      }
+      messages.push({ role: 'user', content: prompt });
+
+      const response = await axios.post(
+        'https://integrate.api.nvidia.com/v1/chat/completions',
+        {
+          model: this.model,
+          max_tokens: maxTokens,
+          temperature: temperature,
+          messages: messages
+        },
+        {
+          headers: {
+            'Authorization': 'Bearer ' + this.apiKey,
+            'Content-Type': 'application/json'
+          },
+          timeout: 120000
+        }
+      );
+
+      const duration = Date.now() - startTime;
+      console.log('✅ NVIDIA chat response in ' + duration + 'ms');
+
+      const responseText = response.data.choices[0].message.content;
+      return { success: true, response: responseText, metadata: { model: this.model, duration } };
+    } catch (error) {
+      console.error('❌ NVIDIA chat Error:', error.message);
+      throw new Error('NVIDIA chat request failed: ' + error.message);
+    }
+  }
 }
 
 module.exports = NVIDIAClient;
