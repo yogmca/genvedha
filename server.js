@@ -425,59 +425,134 @@ RETURN ONLY valid JSON:
     }
 
     if (!extractionResponse || !extractionResponse.response || extractionResponse.response.trim().length <= 10) {
-      console.error('❌ All NVIDIA attempts failed. Using fallback.');
-      const fallbackResponses = [
-        "I'm here to help you create your e-commerce app! Could you tell me your business name, what products you'll sell, and what categories you need?",
-        "I'd love to help you build your online store! What's your business name and what type of products will you sell?",
-        "Let's get started on your e-commerce app! Tell me your business name, product type, and categories."
-      ];
-      const fallbackResponse = fallbackResponses[Math.floor(Math.random() * fallbackResponses.length)];
+      console.error('❌ All NVIDIA attempts failed. Using rule-based fallback.');
+      // Rule-based fallback extraction from user message
+      const extractedInfo = {};
+      const msg = userMessage;
+      
+      // Extract business name
+      if (!currentRequirements.businessName) {
+        const namePatterns = [
+          /(?:name|call|called)\s+(?:is|it)?\s*['"\"]?([A-Z][a-zA-Z0-9\s]+?)['"\"]?/i,
+          /business\s+(?:name\s+)?(?:is|will be)\s+['"\"]?([A-Z][a-zA-Z0-9\s]+?)['"\"]?/i,
+          /create\s+([A-Z][a-zA-Z0-9\s]+)/i,
+          /^([A-Z][a-zA-Z0-9\s]+?)$/i  // Single word like "Roots"
+        ];
+        for (const p of namePatterns) {
+          const m = msg.match(p);
+          if (m && m[1] && m[1].trim().length >= 2) {
+            const candidate = m[1].trim();
+            // Skip common words
+            const commonWords = ['hello', 'hi', 'hey', 'yes', 'no', 'ok', 'sure', 'thanks', 'thank', 'please', 'help'];
+            if (!commonWords.includes(candidate.toLowerCase())) {
+              extractedInfo.businessName = candidate;
+              break;
+            }
+          }
+        }
+      }
+      
+      // Extract product type
+      if (!currentRequirements.productType) {
+        const productPatterns = [
+          /selling\s+([a-zA-Z\s]+?)(?:\.|,|$)/i,
+          /sell(?:ing)?\s+([a-zA-Z\s]+?)(?:\.|,|$)/i,
+          /products?\s+(?:are|is|like)?\s*[:]\s*([a-zA-Z\s]+?)(?:\.|,|$)/i
+        ];
+        for (const p of productPatterns) {
+          const m = msg.match(p);
+          if (m && m[1] && m[1].trim().length >= 3) {
+            extractedInfo.productType = m[1].trim();
+            break;
+          }
+        }
+      }
+      
+      // Extract categories
+      if (!currentRequirements.categories) {
+        const catMatch = msg.match(/categories?\s*[:]\s*([a-zA-Z\s,]+?)(?:\.|$)/i);
+        if (catMatch && catMatch[1]) {
+          extractedInfo.categories = catMatch[1].split(',').map(c => c.trim()).filter(c => c.length > 0);
+        }
+      }
+      
+      const updatedReq = { ...currentRequirements, ...extractedInfo };
+      const missing = [];
+      if (!updatedReq.businessName) missing.push('business name');
+      if (!updatedReq.productType) missing.push('product type');
+      if (!updatedReq.categories) missing.push('product categories');
+      const allGathered = missing.length === 0;
+      
+      let responseText;
+      if (allGathered) {
+        responseText = 'Great! I have all the information I need. Do you want me to generate your app now? (yes/no)';
+      } else if (missing.length === 3) {
+        responseText = 'Great! To get started, could you tell me:\\n\\n• What would you like to name your e-commerce business?\\n• What type of products will you be selling?\\n• What product categories do you need?';
+      } else if (!updatedReq.businessName) {
+        responseText = 'What would you like to name your e-commerce business?';
+      } else if (!updatedReq.productType) {
+        responseText = `What type of products will ${updatedReq.businessName} be selling?`;
+      } else if (!updatedReq.categories) {
+        responseText = `What product categories would you like?`;
+      } else {
+        responseText = 'Tell me more about your business.';
+      }
 
       res.status(200).json({
         success: true,
-        response: fallbackResponse,
-        extractedInfo: {},
-        allRequirementsGathered: false
+        response: responseText,
+        extractedInfo: extractedInfo,
+        allRequirementsGathered: allGathered
       });
       return;
     }
 
     const rawText = extractionResponse.response || '';
 
+    // Handle double-serialized JSON (when NVIDIA returns a JSON string instead of object)
+    let rawTextParsed = rawText;
+    if (typeof rawText === 'string' && rawText.trim().startsWith('"') && rawText.trim().endsWith('"')) {
+      try {
+        rawTextParsed = JSON.parse(rawText);
+      } catch (e) {
+        // Not a JSON string, use as-is
+      }
+    }
+
     // STEP 3: Parse JSON with multiple strategies for truncated responses
     let parsed = null;
 
     // Strategy 1: Try to parse the full response as JSON
     try {
-      parsed = JSON.parse(rawText);
+      parsed = JSON.parse(rawTextParsed);
     } catch (e1) {
       // Strategy 2: Extract the largest JSON object from the response
       try {
-        const jsonMatch = rawText.match(/\{[\s\S]*}/);
+        const jsonMatch = rawTextParsed.match(/\{[\s\S]*}/);
         if (jsonMatch) {
           parsed = JSON.parse(jsonMatch[0]);
         }
       } catch (e2) {
         // Strategy 3: Extract just the extractedInfo object from truncated JSON
         try {
-          const infoMatch = rawText.match(/"extractedInfo"\s*:\s*\{[^}]*}/);
+          const infoMatch = rawTextParsed.match(/"extractedInfo"\s*:\s*\{[^}]*}/);
           if (infoMatch) {
-            parsed = { extractedInfo: JSON.parse('{' + infoMatch[0] + '}'), allRequirementsGathered: false, response: rawText.substring(0, 200) };
+            parsed = { extractedInfo: JSON.parse('{' + infoMatch[0] + '}'), allRequirementsGathered: false, response: rawTextParsed.substring(0, 200) };
           }
         } catch (e3) {
           // Strategy 4: Extract individual fields with regex
           try {
             const extractedInfo = {};
-            const bnMatch = rawText.match(/"businessName"\s*:\s*"([^"]+)"/i);
+            const bnMatch = rawTextParsed.match(/"businessName"\s*:\s*"([^"]+)"/i);
             if (bnMatch) extractedInfo.businessName = bnMatch[1];
-            const ptMatch = rawText.match(/"productType"\s*:\s*"([^"]+)"/i);
+            const ptMatch = rawTextParsed.match(/"productType"\s*:\s*"([^"]+)"/i);
             if (ptMatch) extractedInfo.productType = ptMatch[1];
-            const catMatch = rawText.match(/"categories"\s*:\s*\[([^\]]*)\]/i);
+            const catMatch = rawTextParsed.match(/"categories"\s*:\s*\[([^\]]*)\]/i);
             if (catMatch) {
               extractedInfo.categories = catMatch[1].split(',').map(s => s.trim().replace(/"/g, ''));
             }
             if (Object.keys(extractedInfo).length > 0) {
-              parsed = { extractedInfo: extractedInfo, allRequirementsGathered: false, response: rawText.substring(0, 200) };
+              parsed = { extractedInfo: extractedInfo, allRequirementsGathered: false, response: rawTextParsed.substring(0, 200) };
             }
           } catch (e4) {
             parsed = null;
@@ -487,7 +562,7 @@ RETURN ONLY valid JSON:
     }
 
     if (!parsed) {
-      console.error('❌ Failed to parse NVIDIA response:', rawText.substring(0, 200));
+      console.error('❌ Failed to parse NVIDIA response:', rawTextParsed.substring(0, 200));
       parsed = {
         extractedInfo: {},
         allRequirementsGathered: false,

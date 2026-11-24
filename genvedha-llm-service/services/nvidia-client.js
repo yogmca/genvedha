@@ -16,6 +16,7 @@ class NVIDIAClient {
     this.model = config.nvidia.model;
     this.maxTokens = config.nvidia.maxTokens;
     this.temperature = config.nvidia.temperature;
+    this.baseUrl = 'https://integrate.api.nvidia.com/v1/chat/completions';
   }
 
   async generateCustomizations(params) {
@@ -23,33 +24,43 @@ class NVIDIAClient {
     const prompt = this._buildCustomizationPrompt(userRequirements, templateInfo);
     try {
       console.log('🤖 Sending request to NVIDIA API...');
+      console.log('🔑 Using model:', this.model);
       const startTime = Date.now();
 
       const response = await axios.post(
-        'https://integrate.api.nvidia.com/v1/chat/completions',
+        this.baseUrl,
         {
           model: this.model,
-          max_tokens: this.maxTokens,
+          max_tokens: Math.min(this.maxTokens, 1024),
           temperature: this.temperature,
-          messages: [{ role: 'user', content: prompt }]
+          messages: [{ role: 'user', content: prompt }],
+          stream: false
         },
         {
           headers: {
             'Authorization': 'Bearer ' + this.apiKey,
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
           },
-          timeout: 120000
+          timeout: 60000
         }
       );
 
       const duration = Date.now() - startTime;
       console.log('✅ NVIDIA API response in ' + duration + 'ms');
 
-      const responseText = response.data.choices[0].message.content;
+      const responseText = response.data.choices[0]?.message?.content || '';
+      if (!responseText || responseText.trim().length === 0) {
+        throw new Error('NVIDIA returned empty response');
+      }
       const customizations = this._parseCustomizationResponse(responseText);
 
       return { success: true, customizations, metadata: { model: this.model, tokensUsed: response.data.usage, duration } };
     } catch (error) {
+      if (error.response) {
+        console.error('❌ NVIDIA API Error:', error.response.status, error.response.data);
+        throw new Error('NVIDIA API request failed: ' + error.response.status + ' - ' + (error.response.data?.message || error.response.data?.error || error.message));
+      }
       console.error('❌ NVIDIA API Error:', error.message);
       throw new Error('NVIDIA API request failed: ' + error.message);
     }
@@ -77,22 +88,27 @@ class NVIDIAClient {
   async healthCheck() {
     try {
       const response = await axios.post(
-        'https://integrate.api.nvidia.com/v1/chat/completions',
+        this.baseUrl,
         {
           model: this.model,
-          max_tokens: 100,
-          messages: [{ role: 'user', content: 'Respond with OK if you can read this.' }]
+          max_tokens: 50,
+          messages: [{ role: 'user', content: 'Respond with OK if you can read this.' }],
+          stream: false
         },
         {
           headers: {
             'Authorization': 'Bearer ' + this.apiKey,
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
           },
           timeout: 30000
         }
       );
       return { status: 'healthy', model: this.model, response: response.data.choices[0].message.content };
     } catch (error) {
+      if (error.response) {
+        return { status: 'unhealthy', error: error.response.status + ' - ' + (error.response.data?.message || error.response.data?.error || 'Unknown error') };
+      }
       return { status: 'unhealthy', error: error.message };
     }
   }
@@ -101,9 +117,10 @@ class NVIDIAClient {
    * Conversational chat - returns plain text response for Genvedha Guru chatbot
    */
   async chat(params) {
-    const { prompt, systemMessage, maxTokens = 500, temperature = 0.7 } = params;
+    const { prompt, systemMessage, maxTokens = 400, temperature = 0.7 } = params;
     try {
       console.log('🤖 Sending conversational request to NVIDIA API...');
+      console.log('🔑 Using model:', this.model);
       const startTime = Date.now();
 
       const messages = [];
@@ -113,28 +130,37 @@ class NVIDIAClient {
       messages.push({ role: 'user', content: prompt });
 
       const response = await axios.post(
-        'https://integrate.api.nvidia.com/v1/chat/completions',
+        this.baseUrl,
         {
           model: this.model,
           max_tokens: maxTokens,
           temperature: temperature,
-          messages: messages
+          messages: messages,
+          stream: false
         },
         {
           headers: {
             'Authorization': 'Bearer ' + this.apiKey,
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
           },
-          timeout: 120000
+          timeout: 60000
         }
       );
 
       const duration = Date.now() - startTime;
       console.log('✅ NVIDIA chat response in ' + duration + 'ms');
 
-      const responseText = response.data.choices[0].message.content;
+      const responseText = response.data.choices[0]?.message?.content || '';
+      if (!responseText || responseText.trim().length === 0) {
+        throw new Error('NVIDIA returned empty response');
+      }
       return { success: true, response: responseText, metadata: { model: this.model, duration } };
     } catch (error) {
+      if (error.response) {
+        console.error('❌ NVIDIA chat Error:', error.response.status, error.response.data);
+        throw new Error('NVIDIA chat request failed: ' + error.response.status + ' - ' + (error.response.data?.message || error.response.data?.error || error.message));
+      }
       console.error('❌ NVIDIA chat Error:', error.message);
       throw new Error('NVIDIA chat request failed: ' + error.message);
     }
